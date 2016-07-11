@@ -1,0 +1,9 @@
+{
+  "name": "edm-client",
+  "version": "0.0.0",
+  "description": "edm-client",
+  "main": "app.js",
+  "author": {
+    "name": "Administrator"
+  }
+}
