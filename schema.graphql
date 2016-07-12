@@ -1,0 +1,101 @@
+schema {
+  query: RootQueryType
+}
+
+type Client implements Node {
+  facility: Facility
+  id: ID!
+  ipAddress: String!
+  nickname: String!
+  uuid: String!
+}
+
+type ClientConnection {
+  edges: [ClientEdge]
+  pageInfo: PageInfo!
+}
+
+type ClientEdge {
+  cursor: String!
+  node: Client
+}
+
+type Facility implements Node {
+  id: ID!
+  instrumentGroups(after: String, before: String, first: Int, last: Int): InstrumentGroupConnection
+  name: String!
+}
+
+type Group implements Node {
+  children(after: String, before: String, first: Int, last: Int): GroupConnection
+  id: ID!
+  members(after: String, before: String, first: Int, last: Int): UserConnection
+  name: String!
+  parent: Group
+}
+
+type GroupConnection {
+  edges: [GroupEdge]
+  pageInfo: PageInfo!
+}
+
+type GroupEdge {
+  cursor: String!
+  node: Group
+}
+
+type InstrumentGroup implements Node {
+  clients(after: String, before: String, first: Int, last: Int): ClientConnection
+  configurationBlob: String
+  description: String
+  facility: Facility
+  id: ID!
+  name: String!
+}
+
+type InstrumentGroupConnection {
+  edges: [InstrumentGroupEdge]
+  pageInfo: PageInfo!
+}
+
+type InstrumentGroupEdge {
+  cursor: String!
+  node: InstrumentGroup
+}
+
+interface Node {
+  id: ID!
+}
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+}
+
+type RootQueryType {
+  clients(after: String, before: String, first: Int, last: Int): ClientConnection
+  groups(after: String, before: String, first: Int, last: Int): GroupConnection
+  instrumentGroups(after: String, before: String, first: Int, last: Int): InstrumentGroupConnection
+  node(id: ID!): Node
+  users(after: String, before: String, first: Int, last: Int): UserConnection
+}
+
+type User implements Node {
+  email: String!
+  groups(after: String, before: String, first: Int, last: Int): GroupConnection
+  groupsFlat(after: String, before: String, first: Int, last: Int): GroupConnection
+  id: ID!
+  name: String!
+}
+
+type UserConnection {
+  edges: [UserEdge]
+  pageInfo: PageInfo!
+}
+
+type UserEdge {
+  cursor: String!
+  node: User
+}
