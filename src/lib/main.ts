@@ -30,7 +30,7 @@ export class EDM {
         // first load configuration file
         if (typeof initArgs.configFilePath !== "undefined")
             if (fs.existsSync(initArgs.configFilePath))
-            // use specified config file
+                // use specified config file
                 this.readConfigFile(path.normalize(initArgs.configFilePath));
             else {
                 console.log("bad config file path: " + initArgs.configFilePath);
@@ -51,10 +51,10 @@ export class EDM {
     }
 
     parseConfigObject(conf: Object) {
-        const sections = [
-            "sources", "endpoints",
-            "serverSettings", "appSettings"];
-        for (let section in sections) {
+        // const sections = [
+        //     "sources", "endpoints",
+        //     "serverSettings", "appSettings"];
+        for (let section in conf) {
             for (let entry in conf[section]) {
                 this.conf[section][entry] = conf[section][entry];
             }
@@ -66,8 +66,8 @@ export class EDM {
         if (fs.existsSync(configFilePath)) {
             let configFileBuffer = fs.readFileSync(configFilePath);
             configuration = JSON.parse(configFileBuffer.toString());
+            this.parseConfigObject(configuration);
         }
-        this.parseConfigObject(configuration);
     }
 
     writeConfigFile(configFilePath: string) {

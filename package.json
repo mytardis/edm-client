@@ -13,9 +13,6 @@
     "graphql-tools": "^0.6.6",
     "isomorphic-fetch": "^2.2.1",
     "lodash": "^4.14.2",
-    "lokka": "^1.7.0",
-    "lokka-transport-http": "^1.4.0",
-    "lokka-transport-jwt-auth": "^1.3.3",
     "path-extra": "^3.0.0",
     "scp2": "^0.5.0",
     "winreg": "^1.2.1",
@@ -23,8 +20,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "pretest": "tsc",
-    "test": "cd build && mocha",
+    "test": "mocha --compilers ts:ts-node/register,tsx:ts-node/register src/test",
     "start": "cd build && node app"
   },
   "devDependencies": {
@@ -42,6 +38,7 @@
     "nock": "^8.0.0",
     "tslint": "^3.13.0",
     "typed-graphql": "^1.0.1",
-    "typescript": "^2.0.0"
+    "typescript": "^2.0.0",
+    "ts-node": "^1.3.0"
   }
 }

@@ -21,8 +21,8 @@ if (process.env.hasOwnProperty("http_proxy") ||
 /**
  * Windows Internet Settings from Registry
 */
-let hive = Registry.HKCU;  // "HKEY_CURRENT_USER"
-let key = "\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
+// let hive = Registry.HKCU;  // "HKEY_CURRENT_USER"
+// let key = "\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
 
 /**
  * Example entries
@@ -37,34 +37,34 @@ let key = "\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
     ProxyOverride  REG_SZ    monash;<local>
  */
 
-import * as Registry from "winreg";
-let regKey = new Registry({ hive: hive, key: key });
-
-function parseProxySettings(item: Registry.RegistryItem) {
-    switch (item.name) {
-        case "ProxyEnable":
-            let proxyEnable = item.value;
-            break;
-        case "ProxyServer":
-            let proxyServer = item.value;
-            break;
-        case "ProxyOverride":
-            let proxyOverride = item.value;
-            break;
-        case "AutoConfigURL":
-            let autoConfigURL = item.value;
-            break;
-    }
-}
-
-regKey.values(function (err, items) {
-    // items are array of RegistryItem
-    if (err)
-        console.log('ERROR: ' + err);  // needs proper handling
-    else {
-        items.forEach(parseProxySettings);
-    }
-});
+// import * as Registry from "winreg";
+// let regKey = new Registry({ hive: hive, key: key });
+//
+// function parseProxySettings(item: Registry.RegistryItem) {
+//     switch (item.name) {
+//         case "ProxyEnable":
+//             let proxyEnable = item.value;
+//             break;
+//         case "ProxyServer":
+//             let proxyServer = item.value;
+//             break;
+//         case "ProxyOverride":
+//             let proxyOverride = item.value;
+//             break;
+//         case "AutoConfigURL":
+//             let autoConfigURL = item.value;
+//             break;
+//     }
+// }
+//
+// regKey.values(function (err, items) {
+//     // items are array of RegistryItem
+//     if (err)
+//         console.log('ERROR: ' + err);  // needs proper handling
+//     else {
+//         items.forEach(parseProxySettings);
+//     }
+// });
 
 /**
  * Windows newer proxy settings, not always in sync with registry above
@@ -87,4 +87,3 @@ Current WinHTTP proxy settings:
 /**
  * Patch http/requests library with proxy settings
  */
-

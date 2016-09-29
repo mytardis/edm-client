@@ -3,7 +3,7 @@ import * as child_process from "child_process";
 var path = require("path-extra");
 import * as fs from "fs";
 import {expect} from "chai";
-import {EDM, EDMSettings} from "../lib/settings";
+import {EDM} from "../lib/main";
 import * as yargs from "yargs";
 
 describe("testing tests", function () {
@@ -18,6 +18,8 @@ function ensure_cwd() {
     // There is an open github issue about this already...
     if (path.basename(process.cwd()) === "test") {
         process.chdir("..");
+    } else if (path.basename(process.cwd()) === "edm-client") {
+        process.chdir("build");
     }
 }
 
@@ -45,10 +47,12 @@ describe("run command line program", function() {
         });
     it("should output configuration when called with config", function(done) {
         ensure_cwd();
+        // write config file
+        fs.writeFileSync("test-edm-settings.json", JSON.stringify({"serverSettings":{"host":"testhost:9000"}}, null, 2));
         child_process.exec("node app.js config -c test-edm-settings.json", (error: Error, stdout: Buffer, stderr: Buffer) => {
             assert.equal(stdout.toString("utf8").trim(),
                          JSON.stringify(
-                             {"serverSettings": {"host": "localhost", "interval": -1}}, null, 2));
+                             {"serverSettings":{"host":"testhost:9000"}}, null, 2));
             done();
         });
     })
@@ -56,7 +60,7 @@ describe("run command line program", function() {
 
 describe("Configuration is built when starting the program, ", function () {
     var configLocation = path.join(
-        process.cwd(), 'test-' + EDMSettings.default_config_file_name);
+        process.cwd(), 'test-' + EDM.default_config_file_name);
     before(function () {
         // set up configuration
         if (fs.existsSync(configLocation)) fs.unlinkSync(configLocation);
@@ -64,12 +68,13 @@ describe("Configuration is built when starting the program, ", function () {
     it.skip("should create a configuration file if none exists", function() {
         // need to override data dir for auto-creation
         expect(fs.existsSync(configLocation)).to.be.false;
-        let args = yargs.default('c', configLocation).argv;
-        let options = new EDMSettings(args);
+        let initArgs = <EDMInitArgs>{
+          configFilePath: configLocation,
+        };
+        let edm = new EDM(initArgs);
         expect(fs.existsSync(configLocation)).to.be.true;
     })
     it("should read a configuration file from a standard location", function() {
-        let opts = new EDMSettings(undefined);
     });
     it("should read a config file from --config location, ignore system one",
        function() {
@@ -89,19 +94,38 @@ describe("Configuration is built when starting the program, ", function () {
 });
 
 describe("Configuration options", function () {
+    it("should have a default server setting",
+        function(done) {
+            ensure_cwd();
+            child_process.exec("node app.js config", function(
+                error: Error, stdout: Buffer, stderr: Buffer) {
+                assert.equal(
+                    JSON.parse(stdout.toString("utf8")).serverSettings.host,
+                    "localhost:4000");
+                done();
+            });
+        }
+    ),
     it("should allow setting the server address with -s",
-       function () {
-           // default value
-           let defaultOptions = new EDMSettings(yargs.argv);
-           expect(defaultOptions.conf.serverSettings.host).to.be.equal('localhost');
-           // custom value
-           let args = yargs.default('s', 'edm.com').argv;
-           let options = new EDMSettings(args);
-           expect(options.conf.serverSettings.host).to.be.equal('edm.com');
+        function (done) {
+            ensure_cwd();
+            child_process.exec("node app.js -s edm.com config", function(
+                error: Error, stdout: Buffer, stderr: Buffer) {
+                    assert.equal(
+                        JSON.parse(stdout.toString("utf8")).serverSettings.host,
+                        "edm.com");
+                    done();
+            });
     });
-    it("should allow setting the token with --token", function () {
-        let args = yargs.default('token', 'abc123').argv;
-        let options = new EDMSettings(args);
-        expect(options.conf.serverSettings.token).to.be.equal('abc123');
-    });
+    it("should allow setting the token with --token",
+        function(done) {
+            ensure_cwd();
+            child_process.exec("node app.js -t abc123 config", function(
+                error: Error, stdout: Buffer, stderr: Buffer) {
+                    assert.equal(
+                        JSON.parse(stdout.toString("utf8")).serverSettings.token,
+                        "abc123");
+                    done();
+                });
+        });
 });

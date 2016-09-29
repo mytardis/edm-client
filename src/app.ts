@@ -69,11 +69,11 @@ let args: yargs.Argv = yargs.usage("Usage: edm-client [options] action")
     .command('stop', 'Stop system service')
     .command('upload', 'Upload specific file or directory')
     .command('config', 'Show current configuration')
-    .check(function(argv: yargs.Argv, opts: any): boolean {
+    .check(function(args: yargs.Argv, opts: any): yargs.Argv {
         if (['run', 'start', 'stop', 'upload', 'config'].indexOf(
-            argv._[0]) === -1)
+            args['_'][0]) === -1)
             throw "Please provide valid command";
-        return true;
+        return args;
     })
     .option('c', {
         alias: 'config-file',
@@ -121,13 +121,11 @@ switch (command) {
         console.log("starting system service");
         break;
     case "config":
-        console.log(JSON.stringify(app.conf));
+        console.log(JSON.stringify(app.conf, null, 2));
         break;
     case "run":
     default:
         startup();
         app.start();
-        //run(opts);
         break;
 }
-
