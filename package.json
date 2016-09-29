@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@types/chai": "^3.4.32",
+    "@types/fs-extra": "0.0.32",
     "@types/isomorphic-fetch": "0.0.31",
     "@types/mocha": "^2.2.32",
     "@types/nock": "^8.0.33",
@@ -33,12 +34,14 @@
     "babel-cli": "^6.14.0",
     "babel-relay-plugin": "^0.9.2",
     "chai": "^3.5.0",
+    "fs-extra": "^0.30.0",
     "graphql-typings": "0.0.1-beta-2",
     "mocha": "^2.5.3",
     "nock": "^8.0.0",
+    "ospath": "^1.2.2",
+    "ts-node": "^1.3.0",
     "tslint": "^3.13.0",
     "typed-graphql": "^1.0.1",
-    "typescript": "^2.0.0",
-    "ts-node": "^1.3.0"
+    "typescript": "^2.0.0"
   }
 }

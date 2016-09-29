@@ -6,7 +6,8 @@
 /// <reference path="../types.d.ts" />
 
 import * as fs from "fs";
-var path = require("path-extra");
+import * as path from "path";
+var ospath = require("ospath");
 import * as fetch from 'isomorphic-fetch';
 global['fetch'] = fetch;
 
@@ -38,7 +39,7 @@ export class EDM {
             }
         else {
             // use default config file
-            const dataDir = path.datadir(EDM.app_name);
+            const dataDir = ospath.data(EDM.app_name);
             this.readConfigFile(
                 path.join(dataDir, EDM.default_config_file_name));
         }
@@ -64,9 +65,15 @@ export class EDM {
     readConfigFile(configFilePath: string) {
         let configuration: Object = {};
         if (fs.existsSync(configFilePath)) {
-            let configFileBuffer = fs.readFileSync(configFilePath);
-            configuration = JSON.parse(configFileBuffer.toString());
-            this.parseConfigObject(configuration);
+            try {
+                let configFileBuffer = fs.readFileSync(configFilePath);
+                configuration = JSON.parse(configFileBuffer.toString());
+                this.parseConfigObject(configuration);
+            } catch (error) {
+                console.error(
+                    `error: ${error} with config file at ${configFilePath}`);
+                process.exit(1);
+            }
         }
     }
 
