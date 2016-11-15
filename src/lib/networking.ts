@@ -1,5 +1,6 @@
 /**
  * Created by grischa on 14/07/2016.
+ *
  * To support proxies, we first need to get the settings from the system
  * or environment.
  * Then we need to provide an agent that uses the settings and use that in a

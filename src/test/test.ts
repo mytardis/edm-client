@@ -5,6 +5,7 @@ import * as fs from "fs";
 import {expect} from "chai";
 import {EDM} from "../lib/main";
 import * as yargs from "yargs";
+import {settings, EDMSettings} from "../lib/settings";
 
 describe("testing tests", function () {
     it("should be ok", () => {
@@ -25,6 +26,10 @@ function ensure_cwd() {
 
 describe("run command line program", function() {
     this.timeout(5000);
+    before("set up test env", function () {
+        const initArgs = {dataDir: './testdata'};
+        settings.parseInitArgs(initArgs);
+    });
     it("should output help message to stdour when called with --help",
         (done) => {
             ensure_cwd();
@@ -47,12 +52,17 @@ describe("run command line program", function() {
         });
     it("should output configuration when called with config", function(done) {
         ensure_cwd();
+        console.log(settings);
         // write config file
-        fs.writeFileSync("test-edm-settings.json", JSON.stringify({"serverSettings":{"host":"testhost:9000"}}, null, 2));
-        child_process.exec("node app.js config -c test-edm-settings.json", (error: Error, stdout: Buffer, stderr: Buffer) => {
+        fs.writeFileSync("test-edm-settings.json", JSON.stringify(
+            {"appSettings": {"dataDir": "testdata"}, "serverSettings":{"host":"testhost:9000"}}, null, 2));
+        child_process.exec("node app.js config -c test-edm-settings.json",
+                           (error: Error, stdout: Buffer, stderr: Buffer) => {
             assert.equal(stdout.toString("utf8").trim(),
                          JSON.stringify(
-                             {"serverSettings":{"host":"testhost:9000"}}, null, 2));
+                             {"appSettings": {"dataDir": "testdata"},
+                                 "serverSettings":{"host":"testhost:9000"}},
+                             null, 2));
             done();
         });
     })
@@ -60,7 +70,7 @@ describe("run command line program", function() {
 
 describe("Configuration is built when starting the program, ", function () {
     var configLocation = path.join(
-        process.cwd(), 'test-' + EDM.default_config_file_name);
+        process.cwd(), 'test-' + EDMSettings.default_config_file_name);
     before(function () {
         // set up configuration
         if (fs.existsSync(configLocation)) fs.unlinkSync(configLocation);
@@ -71,7 +81,7 @@ describe("Configuration is built when starting the program, ", function () {
         let initArgs = <EDMInitArgs>{
           configFilePath: configLocation,
         };
-        let edm = new EDM(initArgs);
+        let edm = new EDM();
         expect(fs.existsSync(configLocation)).to.be.true;
     })
     it("should read a configuration file from a standard location", function() {
@@ -82,7 +92,8 @@ describe("Configuration is built when starting the program, ", function () {
     it("should show an error if --config points nowhere or cannot be parsed",
        function() {
     });
-    it("combine command line options with configuration file options", function() {
+    it("combine command line options with configuration file options",
+       function() {
 
     });
     it("should contact the server for its configuration", function() {

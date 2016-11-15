@@ -3,6 +3,7 @@ interface EDMInitArgs {
     serverAddress?: string,
     token?: string,
     configFilePath?: string,
+    dataDir?: string,
 }
 
 interface ServerSettings {
@@ -12,10 +13,21 @@ interface ServerSettings {
     token?: string;
 }
 
-interface EDMSettings {
-    appSettings?: Object;
-    endpoints?: Object;
-    sections?: Object;
+interface AppSettings {
+    dataDir?: string;
+}
+
+interface Settings {
+    appSettings?: AppSettings;
+    hosts?: any;
+    sections?: any;
     serverSettings?: ServerSettings;
-    sources?: Object;
+    sources?: any;
+}
+
+interface EDMCachedFile {
+    _id: string;  // file path
+    mtime: number;
+    size: number;
+    status: string;
 }

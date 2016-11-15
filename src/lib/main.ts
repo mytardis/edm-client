@@ -6,98 +6,56 @@
 /// <reference path="../types.d.ts" />
 
 import * as fs from "fs";
-import * as path from "path";
-var ospath = require("ospath");
 import * as fetch from 'isomorphic-fetch';
 global['fetch'] = fetch;
 
 import gql from 'graphql-tag';
+import {ObservableQuery} from "apollo-client";
+import {CronJob} from 'cron';
 
 import {EDMConnection} from "../edmKit/connection";
-import {ObservableQuery} from "apollo-client";
+import {settings} from "./settings";
+import {EDMFileWatcher} from "./file_watcher";
 
+function print_json(data) {
+    console.log(JSON.stringify(data, null, 2))
+}
 
 export class EDM {
-    static app_name: string = "Express Data Mover";
-    static default_config_file_name: string = "edm-settings.json";
     static pingBackendInterval = 10000;
 
-    conf: EDMSettings = {};
     client: EDMConnection;
+    private tasks: any;
+    private watchers: any;
 
-    constructor(initArgs?: EDMInitArgs) {
-        // initialise serverSettings
-        this.conf.serverSettings = <ServerSettings>{};
-        // first load configuration file
-        if (typeof initArgs.configFilePath !== "undefined")
-            if (fs.existsSync(initArgs.configFilePath))
-                // use specified config file
-                this.readConfigFile(path.normalize(initArgs.configFilePath));
-            else {
-                console.log("bad config file path: " + initArgs.configFilePath);
-                process.exit(1);
-            }
-        else {
-            // use default config file
-            const dataDir = ospath.data(EDM.app_name);
-            this.readConfigFile(
-                path.join(dataDir, EDM.default_config_file_name));
-        }
-        // then override some settings if specified
-        this.conf.serverSettings.host = initArgs.serverAddress ||
-            this.conf.serverSettings.host || "localhost:4000";
-        this.conf.serverSettings.token = initArgs.token;
-
-        this.client = new EDMConnection(this.conf);
-    }
-
-    parseConfigObject(conf: Object) {
-        // const sections = [
-        //     "sources", "endpoints",
-        //     "serverSettings", "appSettings"];
-        for (let section in conf) {
-            for (let entry in conf[section]) {
-                this.conf[section][entry] = conf[section][entry];
-            }
-        }
-    }
-
-    readConfigFile(configFilePath: string) {
-        let configuration: Object = {};
-        if (fs.existsSync(configFilePath)) {
-            try {
-                let configFileBuffer = fs.readFileSync(configFilePath);
-                configuration = JSON.parse(configFileBuffer.toString());
-                this.parseConfigObject(configuration);
-            } catch (error) {
-                console.error(
-                    `error: ${error} with config file at ${configFilePath}`);
-                process.exit(1);
-            }
-        }
-    }
-
-    writeConfigFile(configFilePath: string) {
-        const dataDir = path.dirname(configFilePath);
-        if (! fs.existsSync(dataDir)) {
-            fs.mkdirSync(dataDir, '700');
-        }
-        fs.writeFileSync(configFilePath,
-                         JSON.stringify(JSON.stringify(this.conf), null, 2));
+    constructor() {
+        this.client = new EDMConnection(
+            settings.conf.serverSettings.host,
+            settings.conf.serverSettings.token);
+        // TODO: add single config query for "config" command
     }
 
     backendQuery(): ObservableQuery {
         const query = gql`
 query MeQuery {
-  currentUser {
+  currentClient {
     id
-  }
-  instrumentGroups(first: 10) {
-    edges {
-      node {
+    attributes
+      sources {
+      id
+      name
+      destinations {
+        base
         id
-        configurationBlob
+        host {
+          id
+        }
       }
+    }
+    hosts {
+      id
+      settings
+      name
     }
   }
 }        `;
@@ -111,45 +69,69 @@ query MeQuery {
         const backendQuery = this.backendQuery();
         backendQuery.subscribe({
             next: (value) => {
-                console.log(value);
+                let clientInfo = value.data.currentClient;
+                print_json(settings);
+                print_json(clientInfo.sources);
+                this.stop();
+                settings.parseConfigObject({
+                    sources: clientInfo.sources,
+                    hosts: clientInfo.hosts});
+                this.setUp();
+                print_json(settings.conf);
             },
             error: (error) => {
                 console.log("configpoll error " + error);
             },
             complete: () => {console.log("configpoll complete")}});
         backendQuery.startPolling(EDM.pingBackendInterval);
-            // console.log(data);
-            // const configString = data.instrumentGroups.edges[0].node.configurationBlob;
-            // const config = JSON.parse(configString);
-            // this.opts.parseConfigObject(config);
-            // this.opts.writeConfigFile();
-            // console.log("updated configuration");
-            // this.loading = loading;
-        // });
-    }
-
-    checkDirs() {
-        console.log("checking directories");
-        // this.opts.checkDirs.forEach((dir) => {
-        //     console.log(dir);
-        //     transferDir(dir, destination, transfer-settings);
-        // });
-    }
-
-    watch(dir: string) {
-        console.log('Setting up watcher for ' + dir);
-        fs.watch(dir, {'recursive': true},
-                 (event: string, filename: string) => {
-                     console.log(event);
-                     console.log(filename);
-                 });
     }
 
     start() {
         this.startConfigPolling();
-        // if (typeof this.checkDirsInterval !== undefined)
-        //     console.log("checking dirs every " + this.checkDirsInterval /1000 +
-        //                 " seconds");
-        //     setInterval(() => {this.checkDirs()}, this.checkDirsInterval);
+    }
+
+    setUp() {
+        const sources = settings.conf.sources;
+        for (let id in settings.conf.sources) {
+            const source = settings.conf.sources[id];
+            switch(source.checkMethod) {
+                case "cron":
+                    this.startWatcher(source);
+                    break;
+                case "fsnotify":
+                    break;
+                case "manual":
+                default:
+                    break;
+            }
+        }
+    }
+
+    private startWatcher(source: any) {
+        const watcher = new EDMFileWatcher(source.basepath);
+        this.watchers.push(watcher);
+        const job = new CronJob({
+            cronTime: source.cronTime,
+            context: this,
+            onTick: () => {
+                try {
+                    watcher.walk(job);
+                } catch (e) {
+                    job.stop();
+                    console.error(`Error in watcher on ${source.basepath}`);
+                }
+            },
+            start: true,
+        });
+        this.tasks.push(job);
+    }
+
+    private stop() {
+        // stop/delete all watchers etc
+        this.watchers = [];
+        for (let i in this.tasks) {
+            this.tasks[i].stop();
+        }
+        this.tasks = [];
     }
 }

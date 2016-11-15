@@ -1,6 +1,9 @@
-﻿import * as yargs from "yargs";
-var path = require("path-extra");
+﻿import * as path from "path";
+
+import * as yargs from "yargs";
+
 import {EDM} from "./lib/main";
+import {settings} from "./lib/settings";
 
 /**
  * begin fancy load message and timeout
@@ -70,7 +73,7 @@ let args: yargs.Argv = yargs.usage("Usage: edm-client [options] action")
     .command('upload', 'Upload specific file or directory')
     .command('config', 'Show current configuration')
     .check(function(args: yargs.Argv, opts: any): yargs.Argv {
-        if (['run', 'start', 'stop', 'upload', 'config'].indexOf(
+        if (['service', 'start', 'stop', 'upload', 'config'].indexOf(
             args['_'][0]) === -1)
             throw "Please provide valid command";
         return args;
@@ -78,9 +81,15 @@ let args: yargs.Argv = yargs.usage("Usage: edm-client [options] action")
     .option('c', {
         alias: 'config-file',
         demand: false,
-        describe: 'Optionally, specify location of your configuration file',
+        describe: 'Location of your configuration file',
         type: 'string'
     })
+        .option('d', {
+            alias: 'data-dir',
+            demand: false,
+            describe: 'Data direcotry',
+            type: 'string'
+        })
     .option('s', {
         alias: 'server-address',
         demand: false,
@@ -104,6 +113,9 @@ let initArgs = <EDMInitArgs>{};
 if (argv.hasOwnProperty("c") && typeof(argv["c"]) !== "undefined") {
     initArgs.configFilePath = path.normalize(argv["c"]);
 }
+if (argv.hasOwnProperty("d") && typeof(argv["d"]) !== "undefined") {
+    initArgs.dataDir = path.normalize(argv["d"]);
+}
 if (argv.hasOwnProperty("s") && typeof(argv["s"]) !== "undefined") {
     initArgs.serverAddress = path.normalize(argv["s"]);
 }
@@ -111,21 +123,22 @@ if (argv.hasOwnProperty("t") && typeof(argv["t"]) !== "undefined") {
     initArgs.token = path.normalize(argv["t"]);
 }
 
-let app = new EDM(initArgs);
+settings.parseInitArgs(initArgs);
+
+let app = new EDM();
 
 switch (command) {
     case "upload":
         console.log("Uploading files");
         break;
-    case "start":
+    case "config":
+        console.log(JSON.stringify(settings.conf, null, 2));
+        break;
+    case "service":
         console.log("starting system service");
         break;
-    case "config":
-        console.log(JSON.stringify(app.conf, null, 2));
-        break;
-    case "run":
+    case "start":
     default:
-        startup();
         app.start();
         break;
 }
