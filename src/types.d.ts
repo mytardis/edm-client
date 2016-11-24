@@ -4,6 +4,7 @@ interface EDMInitArgs {
     token?: string,
     configFilePath?: string,
     dataDir?: string,
+    ignoreServerConfig?: boolean;
 }
 
 interface ServerSettings {
@@ -15,6 +16,7 @@ interface ServerSettings {
 
 interface AppSettings {
     dataDir?: string;
+    ignoreServerConfig?: boolean;
 }
 
 interface Settings {
@@ -25,9 +27,20 @@ interface Settings {
     sources?: any;
 }
 
+type FileStatus =
+    "unknown"
+    | "new"
+    | "modified"
+    | "verifying"
+    | "uploading"
+    | "interrupted"
+    | "uploaded";
+
 interface EDMCachedFile {
-    _id: string;  // file path
+    _id: string;   // file path
+    _rev?: string; // PouchDB revision
     mtime: number;
     size: number;
-    status: string;
+    status: FileStatus;
+    hash: string;
 }

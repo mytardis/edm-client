@@ -17,22 +17,25 @@ export class EDMSettings {
         this.conf.serverSettings = {};
     }
 
-    parseConfigObject(conf: Object) {
+    parseConfigObject(parsedConf: Object) {
         // const sections = [
         //     "sources", "endpoints",
         //     "serverSettings", "appSettings"];
-        for (let section in ["appSettings", "serverSettings"]) {
-            for (let entry in conf[section]) {
-                this.conf[section][entry] = conf[section][entry];
+        for (let section of ['appSettings', 'serverSettings']) {
+            for (let entry in parsedConf[section]) {
+                this.conf[section][entry] = parsedConf[section][entry];
             }
         }
-        this.conf.sources = [];
-        for (let source of conf["sources"]) {
+        if (this.conf.sources == null) this.conf.sources = [];
+        for (let source of parsedConf['sources']) {
             this.conf.sources.push(source);
         }
-        this.conf.hosts = {};
-        for (let host of conf["hosts"]) {
-            this.conf.hosts[host.id] = host;
+
+        if (this.conf.hosts == null) this.conf.hosts = {};
+        let hosts = parsedConf['hosts'];
+        for (let host in hosts) {
+            let value = hosts[host];
+            this.conf.hosts[host] = value;
         }
     }
 
@@ -64,7 +67,7 @@ export class EDMSettings {
         // initialise serverSettings
         this.conf.serverSettings = <ServerSettings>{};
         // first load configuration file
-        if (typeof initArgs.configFilePath !== "undefined")
+        if (initArgs.configFilePath != null)
             if (fs.existsSync(initArgs.configFilePath))
                 // use specified config file
                 this.readConfigFile(path.normalize(initArgs.configFilePath));
@@ -79,6 +82,8 @@ export class EDMSettings {
                           EDMSettings.default_config_file_name));
         }
 
+        this.conf.appSettings.ignoreServerConfig = initArgs.ignoreServerConfig;
+
         // then override some settings if specified
         this.conf.appSettings.dataDir = initArgs.dataDir ||
             this.conf.appSettings.dataDir || ospath.data(EDMSettings.app_name);
@@ -87,7 +92,9 @@ export class EDMSettings {
         this.conf.serverSettings.host = initArgs.serverAddress ||
             this.conf.serverSettings.host || "localhost:4000";
 
-        this.conf.serverSettings.token = initArgs.token;
+        if (initArgs.token != null) {
+            this.conf.serverSettings.token = initArgs.token;
+        }
     }
 
     private ensureDataDirExists() {
@@ -98,51 +105,3 @@ export class EDMSettings {
 }
 
 export const settings = new EDMSettings();
-
-
-// examples:
-// "sources": [
-//     {
-//         "basepath": "/tmp/test-1",
-//         "checkMethod": "watch, check, manual",
-//         "checkInterval": 5,
-//         "destinations": [
-//             {
-//                 "endpoint": "massive",
-//                 "location": "/home/test/test-1",
-//                 "exclusions": ["*~"]
-//             },
-//             {
-//                 "endpoint": "store.monash",
-//                 "location": "test-1-bucket"
-//             }
-//         ]
-//     }
-// ]
-//
-// "hosts": {
-//     "massive": {
-//         "transfer_method": "scp2",
-//         "settings": {
-//             "host": "massive.monash.edu",
-//             "port": 22,
-//             "username": "edm-tester",
-//             "privateKey": "AAAABBBCCCCEEDSEFAEFAEFAEFwefaewf982y3fh9"
-//         }
-//     },
-//     "mytardis": {
-//         "transfer_method": "S3",
-//         "settings": {
-//             "EC2_ACCESS_KEY": "ABC123",
-//             "EC2_SECRET_KEY": "CDE456"
-//         }
-//     }
-// }
-//
-// "serverSettings": {
-//     "host": "localhost:4000",
-//     "connection": "poll, socket",
-//     "interval": 5
-// }
-//
-// "appSettings": {}
