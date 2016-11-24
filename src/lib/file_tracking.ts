@@ -50,20 +50,24 @@ export default class EDMFile {
         this.basepath = basepath;
         this.filepath = filepath;
         this._id = filepath;
-        if (typeof stats === "undefined")
+        if (stats == null) {
             this.updateStats();
-        else
+        }
+        else {
             this.stats = stats;
+            this._computeHash();
+        }
     }
 
-    _computeHash() {
-        const data = `${this.filepath}|${this.stats.size}|${this.stats.mtime.getTime()}`;
-        this.hash = Buffer.from(data).toString('base64');
+    private _computeHash() {
+        const format = 'psm';
+        const hash = `${this.filepath}-${this.stats.size}-${this.stats.mtime.getTime()}`;
+        this.hash = `urn:${format}:${hash}`;
     }
 
     updateStats() {
         this.stats = fs.statSync(path.resolve(this.basepath, this.filepath));
-        // this._computeHash();  // may not be needed
+        this._computeHash();  // may not be needed
     }
 
     getPouchDocument() {
@@ -72,6 +76,7 @@ export default class EDMFile {
             mtime: this.stats.mtime.getTime(),
             size: this.stats.size,
             status: this.status,
+            hash: this.hash,
         };
     }
 }
