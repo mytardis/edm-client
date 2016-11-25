@@ -118,14 +118,14 @@ let command: string = argv._[0];
 let initArgs = <EDMInitArgs>{};
 
 function argIsSet(attr: string) : boolean {
-    return (argv.hasOwnProperty(attr) && (argv[attr] == null));
+    return (argv.hasOwnProperty(attr) && (argv[attr] != null));
 }
 
 function getArg(attr: string, applyFn = undefined, defaultValue: any = undefined) : any {
     if (argIsSet(attr)) {
         defaultValue = argv[attr];
     }
-    if (applyFn && typeof(defaultValue) !== "undefined") {
+    if (applyFn && defaultValue != null) {
         return applyFn(defaultValue);
     } else {
         return defaultValue;
