@@ -86,11 +86,14 @@ export class EDMFileCache {
             }
           }
         }`).then((result) => {
-            this.updateEntry(doc, {status: result.data.status});
+            // if server says never seen it,
+            // update EDMFileCached in db to status = 'new'
+            this.updateStatus(doc, result.data.status);
         });
     }
 
-    private updateEntry(doc: any, updates: {status: any}) {
-
+    private updateStatus(doc: any, status: string) {
+        doc.status = status;
+        this.db.put(doc);
     }
 }

@@ -84,12 +84,18 @@ let args: yargs.Argv = yargs.usage("Usage: edm-client [options] action")
         describe: 'Location of your configuration file',
         type: 'string'
     })
-        .option('d', {
-            alias: 'data-dir',
-            demand: false,
-            describe: 'Data direcotry',
-            type: 'string'
-        })
+    .option('n', {
+        alias: 'ignore-server-config',
+        demand: false,
+        describe: "Don't allow server to override clientside configuration",
+        type: 'boolean'
+    })
+    .option('d', {
+        alias: 'data-dir',
+        demand: false,
+        describe: 'Data directory',
+        type: 'string'
+    })
     .option('s', {
         alias: 'server-address',
         demand: false,
@@ -99,7 +105,7 @@ let args: yargs.Argv = yargs.usage("Usage: edm-client [options] action")
     .option('t', {
         alias: 'token',
         demand: false,
-        describe: 'Optionally, specify acces token',
+        describe: 'Optionally, specify access token',
         type: 'string'
     })
     .help('h')
@@ -110,18 +116,27 @@ let argv = args.argv;
 let command: string = argv._[0];
 
 let initArgs = <EDMInitArgs>{};
-if (argv.hasOwnProperty("c") && typeof(argv["c"]) !== "undefined") {
-    initArgs.configFilePath = path.normalize(argv["c"]);
+
+function argIsSet(attr: string) : boolean {
+    return (argv.hasOwnProperty(attr) && (argv[attr] != null));
 }
-if (argv.hasOwnProperty("d") && typeof(argv["d"]) !== "undefined") {
-    initArgs.dataDir = path.normalize(argv["d"]);
+
+function getArg(attr: string, applyFn = undefined, defaultValue: any = undefined) : any {
+    if (argIsSet(attr)) {
+        defaultValue = argv[attr];
+    }
+    if (applyFn && defaultValue != null) {
+        return applyFn(defaultValue);
+    } else {
+        return defaultValue;
+    }
 }
-if (argv.hasOwnProperty("s") && typeof(argv["s"]) !== "undefined") {
-    initArgs.serverAddress = path.normalize(argv["s"]);
-}
-if (argv.hasOwnProperty("t") && typeof(argv["t"]) !== "undefined") {
-    initArgs.token = path.normalize(argv["t"]);
-}
+
+initArgs.configFilePath = getArg("c", path.normalize);
+initArgs.ignoreServerConfig = getArg("n");
+initArgs.dataDir = getArg("d", path.normalize);
+initArgs.serverAddress = getArg("s");
+initArgs.token = getArg("t");
 
 settings.parseInitArgs(initArgs);
 

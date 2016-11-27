@@ -241,4 +241,8 @@ ModelManifest.xml
 # FAKE - F# Make
 .fake/
 
+# Visual Studio Code
+.vscode/
+
 build/
+edm-settings.json

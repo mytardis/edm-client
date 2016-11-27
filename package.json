@@ -7,6 +7,7 @@
     "name": "Administrator"
   },
   "dependencies": {
+    "@types/npm": "^2.0.28",
     "apollo-client": "^0.4.19",
     "graphql": "^0.7",
     "graphql-tag": "^0.1.11",

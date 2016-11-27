@@ -13,9 +13,8 @@ export class EDMFileWatcher {
 
     constructor(basedir: string, exclude?: any) {
         this.basedir = basedir;
-        this.files = [];
         this.cache = new EDMFileCache(basedir.replace(/\//g, '%2f'));
-        if (typeof exclude !== "undefined") {
+        if (exclude != null) {
             const excluder = new RegExp(exclude);
             let exclude_filter = (path) => {
                 return excluder.test(path);
@@ -40,37 +39,53 @@ export class EDMFileWatcher {
     }
 
     handleFile(file) {
-        if (file === null) {
+        if (file == null) {
             console.log('file is null');
             return;
         }
+        if (file.path == this.basedir) {
+            console.log("handleFile: skipping handling basepath '.' file")
+            return;
+        }
+
         console.log(file);
         const relpath = path.relative(this.basedir, file.path);
         let edmFile = new EDMFile(this.basedir, relpath, file.stats);
         this.cache.getEntry(edmFile).then((result) => {
-            switch (result.status) {
-                case "uploaded":
-                    // do nothing
-                    break;
-                case "uploading":
-                    // check timestamp, flag for query
-                    break;
-                case "interrupted":
-                    // do nothing
-                    break;
-                case "verifying":
-                    // check timestamp, flag for query
-                    break;
-                case "new":
-                    // do nothing
-                    break;
-                case "modified":
-                    // do nothing
-                    break;
-                case "unknown":
-                default:
-                    // do nothing
-                    break;
+
+            // compare on-disk to local db
+            if (this.fileHasChanged(edmFile, result)) {
+                let modified = edmFile.getPouchDocument();
+                modified._id = result._id;
+                modified._rev = result._rev;
+                modified.status = 'modified';
+                this.cache.db.put(modified);
+            } else {
+
+                switch (result.status) {
+                    case "uploaded":
+                        // do nothing
+                        break;
+                    case "uploading":
+                        // check timestamp, flag for query
+                        break;
+                    case "interrupted":
+                        // do nothing
+                        break;
+                    case "verifying":
+                        // check timestamp, flag for query
+                        break;
+                    case "new":
+                        // do nothing
+                        break;
+                    case "modified":
+                        // do nothing
+                        break;
+                    case "unknown":
+                    default:
+                        // do nothing
+                        break;
+                }
             }
             // console.log(`${result._id} is in cache`);
         }).catch((error) => {
@@ -85,6 +100,16 @@ export class EDMFileWatcher {
 
     endWalk() {
         console.log("finished one walk");
+    }
+
+    private statsHaveChanged(file: EDMFile, cachedFile: EDMCachedFile) {
+        return (file.stats.size !== cachedFile.size ||
+                file.stats.mtime.getTime() !== cachedFile.mtime);
+    }
+
+    private fileHasChanged(file: EDMFile, cachedFile: EDMCachedFile) {
+        return (this.statsHaveChanged(file, cachedFile) ||
+                file.hash === cachedFile.hash);
     }
 
     private handleError(error: any, job?: any) {

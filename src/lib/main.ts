@@ -73,9 +73,11 @@ query MeQuery {
                 print_json(settings);
                 print_json(clientInfo.sources);
                 this.stop();
-                settings.parseConfigObject({
-                    sources: clientInfo.sources,
-                    hosts: clientInfo.hosts});
+                if (!settings.conf.appSettings.ignoreServerConfig) {
+                    settings.parseConfigObject({
+                        sources: clientInfo.sources,
+                        hosts: clientInfo.hosts});
+                }
                 this.setUp();
                 print_json(settings.conf);
             },
@@ -91,9 +93,7 @@ query MeQuery {
     }
 
     setUp() {
-        const sources = settings.conf.sources;
-        for (let id in settings.conf.sources) {
-            const source = settings.conf.sources[id];
+        for (let source of settings.conf.sources) {
             switch(source.checkMethod) {
                 case "cron":
                     this.startWatcher(source);
@@ -101,6 +101,7 @@ query MeQuery {
                 case "fsnotify":
                     break;
                 case "manual":
+                    break;
                 default:
                     break;
             }
@@ -124,6 +125,7 @@ query MeQuery {
             start: true,
         });
         this.tasks.push(job);
+        console.log(`Starting file watcher on ${source.basepath}`)
     }
 
     private stop() {
