@@ -1,5 +1,7 @@
 ﻿# edm-client
 
+[![Build Status](https://semaphoreci.com/api/v1/mytardis/edm-client/branches/master/badge.svg)](https://semaphoreci.com/mytardis/edm-client)
+
 ## Building
 
 ```

@@ -5,7 +5,6 @@
  */
 /// <reference path="../types.d.ts" />
 
-import * as fs from "fs";
 import * as fetch from 'isomorphic-fetch';
 global['fetch'] = fetch;
 
@@ -32,7 +31,6 @@ export class EDM {
         this.client = new EDMConnection(
             settings.conf.serverSettings.host,
             settings.conf.serverSettings.token);
-        // TODO: add single config query for "config" command
     }
 
     backendQuery(): ObservableQuery {
@@ -131,7 +129,7 @@ query MeQuery {
     private stop() {
         // stop/delete all watchers etc
         this.watchers = [];
-        for (let i in this.tasks) {
+        for (let i = 0; i < this.tasks.length; i++) {
             this.tasks[i].stop();
         }
         this.tasks = [];
