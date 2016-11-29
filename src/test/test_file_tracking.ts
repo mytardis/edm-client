@@ -12,12 +12,12 @@ describe("file tracker", function () {
     it("should hash a file and its metadata", function () {
         console.log(settings.conf.appSettings.dataDir)
 
-        let file = new EDMFile('./app.js');
+        let file = new EDMFile('.', 'app.js');
         expect("bla").to.equal('bla');
     });
     it("should be able to test whether the file exists in the " +
         "cache", function (done) {
-        let file = new EDMFile('./app.js');
+        let file = new EDMFile('.', 'app.js');
         let cache = new EDMFileCache('testdb');
         cache.getEntry(file)
         .then((result) => {

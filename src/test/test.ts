@@ -60,8 +60,10 @@ describe("run command line program", function() {
                            (error: Error, stdout: Buffer, stderr: Buffer) => {
             assert.equal(stdout.toString("utf8").trim(),
                          JSON.stringify(
-                             {"appSettings": {"dataDir": "testdata"},
-                                 "serverSettings":{"host":"testhost:9000"}},
+                             {"appSettings": {
+                                 "dataDir": "testdata",
+                                 "ignoreServerConfig": false},
+                              "serverSettings":{"host":"testhost:9000"}},
                              null, 2));
             done();
         });

@@ -1,5 +1,8 @@
 ﻿# edm-client
 
+[![Build Status](https://semaphoreci.com/api/v1/mytardis/edm-client/branches/master/badge.svg)](https://semaphoreci.com/mytardis/edm-client)
+[![Build status](https://ci.appveyor.com/api/projects/status/ex84g0e8gyi61p6u/branch/master?svg=true)](https://ci.appveyor.com/project/grischa/edm-client/branch/master)
+
 ## Building
 
 ```

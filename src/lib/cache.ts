@@ -60,6 +60,7 @@ export class EDMFileCache {
                 }
             })
             .on('complete', (info) => {
+                console.info(info);
                 console.log("stopped listening for changes");
             })
             .on('error', (error) => {

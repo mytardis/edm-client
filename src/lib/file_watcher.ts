@@ -7,9 +7,9 @@ import {EDMFileCache} from "./cache";
 
 export class EDMFileWatcher {
     basedir: string;
-    walker: any;
     cache: EDMFileCache;
     filters: any = [];
+    lastWalkItems: any;
 
     constructor(basedir: string, exclude?: any) {
         this.basedir = basedir;
@@ -24,7 +24,9 @@ export class EDMFileWatcher {
     }
 
     walk(job?: any) {
+        // using https://github.com/jprichardson/node-klaw
         const walker = fs.walk(this.basedir);
+        const items = [];
         for (let filter of this.filters) {
             walker.pipe(through2.obj((item, enc, next) => {
                 filter(item);
@@ -32,9 +34,14 @@ export class EDMFileWatcher {
             }));
         }
         walker.on('readable', () => {
-            this.handleFile(walker.read());
+            let item = walker.read();
+            this.handleFile(item);
+            items.push(item);
         })
-        .on('end', () => this.endWalk())
+        .on('end', () => {
+            this.lastWalkItems = items;
+            this.endWalk();
+        })
         .on('error', (error) => this.handleError(error, job));
     }
 
@@ -99,6 +106,7 @@ export class EDMFileWatcher {
     }
 
     endWalk() {
+        console.info(this.lastWalkItems);
         console.log("finished one walk");
     }
 

@@ -8,14 +8,4 @@ describe("file watch cache", function () {
         const initArgs = {dataDir: './testdata'};
         settings.parseInitArgs(initArgs);
     });
-    it("should sync itself", function (done) {
-        let watcher = new EDMFileWatcher('./lib');
-        watcher.cache.sync().then((result) => {
-            console.log(result);
-            done();
-        }).catch((error) => {
-            console.error(error);
-            done();
-        })
-    })
 });

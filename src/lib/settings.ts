@@ -26,16 +26,21 @@ export class EDMSettings {
                 this.conf[section][entry] = parsedConf[section][entry];
             }
         }
-        if (this.conf.sources == null) this.conf.sources = [];
-        for (let source of parsedConf['sources']) {
-            this.conf.sources.push(source);
+
+        if ('sources' in parsedConf) {
+            if (this.conf.sources == null) this.conf.sources = [];
+            for (let source of parsedConf['sources']) {
+                this.conf.sources.push(source);
+            }
         }
 
-        if (this.conf.hosts == null) this.conf.hosts = {};
-        let hosts = parsedConf['hosts'];
-        for (let host in hosts) {
-            let value = hosts[host];
-            this.conf.hosts[host] = value;
+        if ('hosts' in parsedConf) {
+            if (this.conf.hosts == null) this.conf.hosts = {};
+            let hosts = parsedConf['hosts'];
+            for (let host in hosts) {
+                let value = hosts[host];
+                this.conf.hosts[host] = value;
+            }
         }
     }
 
