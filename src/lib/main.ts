@@ -129,8 +129,10 @@ query MeQuery {
     private stop() {
         // stop/delete all watchers etc
         this.watchers = [];
-        for (let i = 0; i < this.tasks.length; i++) {
-            this.tasks[i].stop();
+        if (this.tasks != null) {
+            for (let task of this.tasks) {
+                task.stop();
+            }
         }
         this.tasks = [];
     }

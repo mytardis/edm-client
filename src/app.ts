@@ -121,7 +121,9 @@ function argIsSet(attr: string) : boolean {
     return (argv.hasOwnProperty(attr) && (argv[attr] != null));
 }
 
-function getArg(attr: string, applyFn = undefined, defaultValue: any = undefined) : any {
+function getArg(attr: string,
+                applyFn: Function | undefined = undefined,
+                defaultValue: any = undefined) : any {
     if (argIsSet(attr)) {
         defaultValue = argv[attr];
     }
