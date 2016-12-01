@@ -6,13 +6,13 @@
  */
 /// <reference path="../types.d.ts" />
 import {createNetworkInterface, default as ApolloClient} from "apollo-client";
-
+import {NetworkInterfaceOptions} from "apollo-client/transport/networkInterface";
 
 export class EDMConnection extends ApolloClient {
 
     constructor(host: string, token: string) {
         const graphqlEndpoint = `http://${host}/api/v1/graphql`;
-        const networkInterface = createNetworkInterface(graphqlEndpoint);
+        const networkInterface = createNetworkInterface(<NetworkInterfaceOptions>{uri: graphqlEndpoint});
         networkInterface.use([{
             applyMiddleware(req, next) {
                 if (!req.options.headers) {
