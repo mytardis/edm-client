@@ -12,7 +12,7 @@ describe("file watcher", function () {
     it("should list files in a folder", function (done) {
         console.log(settings.conf.appSettings.dataDir);
         fs.removeSync(settings.conf.appSettings.dataDir + '/data/.%2flib');
-        let watcher = new EDMFileWatcher('./lib');
+        let watcher = new EDMFileWatcher({'basepath': './lib'});
         watcher.endWalk = () => {
             const numfiles = watcher.lastWalkItems.length;
             expect(numfiles).to.be.greaterThan(20);

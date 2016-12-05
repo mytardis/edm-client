@@ -107,7 +107,7 @@ query MeQuery {
     }
 
     private startWatcher(source: any) {
-        const watcher = new EDMFileWatcher(source.basepath);
+        const watcher = new EDMFileWatcher(source);
         this.watchers.push(watcher);
         const job = new CronJob({
             cronTime: source.cronTime,

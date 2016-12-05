@@ -25,7 +25,10 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import * as _ from "lodash";
 
+import gql from 'graphql-tag';
+import {ObservableQuery} from "apollo-client";
 
 export default class EDMFile {
     _id: string;
@@ -78,5 +81,11 @@ export default class EDMFile {
             status: this.status,
             hash: this.hash,
         };
+    }
+
+    getGqlVariables() {
+        let variables = _.pick(this.stats, ['size', 'mtime', 'atime', 'ctime', 'birthtime', 'mode']);
+        variables['filepath'] = this.filepath;
+        return variables;
     }
 }
