@@ -3,6 +3,8 @@ import * as _ from "lodash";
 const fs = require('fs-extra');
 const querystring = require('querystring');
 
+import {ApolloQueryResult} from "apollo-client";
+
 import * as through2 from 'through2';
 import {settings} from "./settings";
 import {EDMConnection} from "../edmKit/connection";
@@ -110,7 +112,7 @@ export class EDMFileWatcher {
         return _.filter(cachedRecord.transfers, {transfer_status: 'pending_upload'});
     }
 
-    public registerAndCache(localFile: EDMFile, cachedRecord?: EDMCachedFile) {
+    public registerAndCache(localFile: EDMFile, cachedRecord?: EDMCachedFile): Promise<ApolloQueryResult> {
         return EDMQueries.registerFileWithServer(localFile, this.source.name, this.client)
             .then((backendResponse) => {
                 const transfers = _.get(

@@ -80,7 +80,7 @@ export class EDMQueries {
                                   file: EDMFile,
                                   source_name: string,
                                   connection: EDMConnection,
-                                  mutation_id?: string) : Promise<ApolloQueryResult> {
+                                  mutation_id?: string): Promise<ApolloQueryResult> {
 
         const mutation = EDMQueries.getOrCreateFileMutation(
             file,

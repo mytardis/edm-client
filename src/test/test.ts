@@ -1,4 +1,8 @@
-﻿import * as assert from "assert";
+﻿/// <reference path="../../node_modules/@types/node/index.d.ts" />
+/// <reference path="../../node_modules/@types/mocha/index.d.ts" />
+/// <reference path="../../node_modules/@types/chai/index.d.ts" />
+
+import * as assert from "assert";
 import * as child_process from "child_process";
 var path = require("path-extra");
 import * as fs from "fs";
