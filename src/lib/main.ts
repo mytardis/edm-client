@@ -81,6 +81,7 @@ query MeQuery {
             },
             error: (error) => {
                 console.log("configpoll error " + error);
+                // TODO: restart startConfigPolling after a delay
             },
             complete: () => {console.log("configpoll complete")}});
         backendQuery.startPolling(EDM.pingBackendInterval);

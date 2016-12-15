@@ -1,16 +1,14 @@
 import * as path from 'path';
+import * as _ from "lodash";
 const fs = require('fs-extra');
 const querystring = require('querystring');
-const uuidV4 = require('uuid/v4');
-
-import gql from "graphql-tag/index";
-import {MutationOptions} from "apollo-client";
 
 import * as through2 from 'through2';
 import {settings} from "./settings";
 import {EDMConnection} from "../edmKit/connection";
 import EDMFile from "./file_tracking";
 import {EDMFileCache} from "./cache";
+import {EDMQueries} from "./queries";
 
 
 export class EDMFileWatcher {
@@ -69,52 +67,20 @@ export class EDMFileWatcher {
             return;
         }
 
-        console.log(file);
+        // console.log(file);
         const relpath = path.relative(this.basepath, file.path);
         let edmFile = new EDMFile(this.basepath, relpath, file.stats);
-        this.cache.getEntry(edmFile).then((result) => {
+        this.cache.getEntry(edmFile).then((cached) => {
 
             // compare on-disk to local db
-            if (this.fileHasChanged(edmFile, result)) {
-                let modified = edmFile.getPouchDocument();
-                modified._id = result._id;
-                modified._rev = result._rev;
-                modified.status = 'modified';
-                this.cache.db.put(modified);
+            if (this.fileHasChanged(edmFile, cached)) {
+                this.registerAndCache(edmFile, cached);
             }
-            else {
-
-                switch (result.status) {
-                    case "uploaded":
-                        // do nothing
-                        break;
-                    case "uploading":
-                        // check timestamp, flag for query
-                        break;
-                    case "interrupted":
-                        // do nothing
-                        break;
-                    case "verifying":
-                        // check timestamp, flag for query
-                        break;
-                    case "new":
-                        // do nothing
-                        break;
-                    case "modified":
-                        // do nothing
-                        break;
-                    case "unknown":
-                    default:
-                        // do nothing
-                        break;
-                }
-            }
-            console.log(`${result._id} is in cache`);
+            console.log(`${cached._id} is in cache (transfers: ${cached.transfers})`);
         }).catch((error) => {
             if (error.name === "not_found") {
-                edmFile.status = "unknown";
-                this.cache.addEntry(edmFile)
-                this.registerFileWithServer(edmFile);
+                // new file (unknown to client, may be known to server if local cache was cleared)
+                this.registerAndCache(edmFile);
             } else {
                 console.error(error);
             }
@@ -133,35 +99,46 @@ export class EDMFileWatcher {
 
     private fileHasChanged(file: EDMFile, cachedFile: EDMCachedFile) {
         return (this.statsHaveChanged(file, cachedFile) ||
-                file.hash === cachedFile.hash);
+                file.hash !== cachedFile.hash);
     }
 
-    private registerFileWithServer(file: EDMFile) {
-        const mutation = gql`
-        mutation getOrCreateFile($input: GetOrCreateFileInput!) {
-         getOrCreateFile(input: $input) {
-            clientMutationId
-            file {
-              filepath
-            }
-         }
-        }`;
-        return this.client.mutate(
-            <MutationOptions>{mutation: mutation,
-            variables: {
-                "input": {
-                    "clientMutationId": uuidV4(),
-                    "source": {"name": this.source.name},
-                    "file": file.getGqlVariables()
+    private needsUpload(cachedRecord: EDMCachedFile) {
+        return _.some(cachedRecord.transfers, {transfer_status: 'pending_upload'});
+    }
+
+    private pendingTransfers(cachedRecord: EDMCachedFile) {
+        return _.filter(cachedRecord.transfers, {transfer_status: 'pending_upload'});
+    }
+
+    public registerAndCache(localFile: EDMFile, cachedRecord?: EDMCachedFile) {
+        return EDMQueries.registerFileWithServer(localFile, this.source.name, this.client)
+            .then((backendResponse) => {
+                const transfers = _.get(
+                    backendResponse.data.getOrCreateFile.file, 'file_transfers', []);
+                let doc: EDMCachedFile = localFile.getPouchDocument();
+                if (cachedRecord != null) { // we are updating an existing record
+                    doc._id = cachedRecord._id;
+                    doc._rev = cachedRecord._rev;
                 }
-            }}).then((value) => { console.log(JSON.stringify(value))});
+                doc.transfers = transfers;
+                this.cache.db.put(doc).error((error) => {
+                    console.error(`Cache put failed: ${error}`);
+                });
+                // console.log(backendResponse);
+                return backendResponse;
+            })
+            .catch((error) => {
+                // We get the main GQL error from the server in error.message
+                // and a list in the array errors.graphQLErrors
+                console.error(`ERROR: ${error}`);
+            });
     }
 
     private handleError(error: any, job?: any) {
         console.error(error);
         if (error.code == "ENOENT" &&
             error.path === path.resolve(this.basepath))
-            if (typeof job !== "undefined") {
+            if (job != null) {
                 console.error("stopping cron job");
                 job.stop();
             }

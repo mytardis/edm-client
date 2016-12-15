@@ -27,9 +27,6 @@ import * as fs from "fs";
 import * as path from "path";
 import * as _ from "lodash";
 
-import gql from 'graphql-tag';
-import {ObservableQuery} from "apollo-client";
-
 export default class EDMFile {
     _id: string;
     basepath: string;
@@ -73,13 +70,12 @@ export default class EDMFile {
         this._computeHash();  // may not be needed
     }
 
-    getPouchDocument() {
+    getPouchDocument(): EDMCachedFile {
         return <EDMCachedFile>{
             _id: this.filepath,
             mtime: this.stats.mtime.getTime(),
             size: this.stats.size,
-            status: this.status,
-            hash: this.hash,
+            hash: this.hash
         };
     }
 

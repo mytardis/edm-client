@@ -8,9 +8,9 @@ describe("file tracker", function () {
     before("set up test env", function () {
         const initArgs = {dataDir: './testdata'};
         settings.parseInitArgs(initArgs);
-    })
+    });
     it("should hash a file and its metadata", function () {
-        console.log(settings.conf.appSettings.dataDir)
+        console.log(settings.conf.appSettings.dataDir);
 
         let file = new EDMFile('.', 'app.js');
         expect("bla").to.equal('bla');

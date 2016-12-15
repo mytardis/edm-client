@@ -1,7 +1,7 @@
 {
   "sources": [
     {
-      "name": "temptest",
+      "name": "test source",
       "basepath": "/tmp/test-1",
       "checkMethod": "cron",
       "cronTime": "*/5 * * * * *",
