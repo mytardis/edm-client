@@ -11,6 +11,7 @@ export class SCP2Transfer extends TransferMethod {
 
     constructor(options) {
         let sanitized_options = {};
+        // insert sanitizing code here
         sanitized_options = options;
         super(sanitized_options);
         this.client = new Client(this.options.ssh_opts);
@@ -18,17 +19,17 @@ export class SCP2Transfer extends TransferMethod {
 
     transfer(filepath) {
         this.client.upload(
-            this.getSourcePath(filepath),
-            this.getDestinationPath(filepath),
+            this.getSourcePath(),
+            this.getDestinationPath(),
             this.handleError);
     }
 
-    private getSourcePath(filepath) {
-        return path.join(this.options.sourceBasePath, filepath);
+    private getSourcePath() {
+        return path.join(this.options.sourceBasePath, this.filepath);
     }
 
-    private getDestinationPath(filepath) {
-        return path.join(this.options.destinationBasePath, filepath);
+    private getDestinationPath() {
+        return path.join(this.options.destinationBasePath, this.filepath);
     }
 
     private handleError(error) {

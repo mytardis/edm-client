@@ -13,7 +13,7 @@ export class EDMSettings {
     conf: Settings = {};
 
     constructor() {
-        this.conf.appSettings = {};
+        this.conf.appSettings = <AppSettings>{};
         this.conf.serverSettings = {};
     }
 

@@ -15,6 +15,7 @@ interface ServerSettings {
 }
 
 interface AppSettings {
+    maxAsyncTransfers: number;
     dataDir?: string;
     ignoreServerConfig?: boolean;
     concurrency?: number;
@@ -57,7 +58,8 @@ interface EDMFileTransfer {
 }
 
 interface FileTransfer {
-
+    transferMethod: TransferMethod;
+    filepath: string;
 }
 
 declare module "scp2" {
