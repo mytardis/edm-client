@@ -52,7 +52,7 @@ describe("file watcher", function () {
         tmpFile = createNewTmpfile();
         replyData = {
             "data": {
-                "getOrCreateFile": {
+                "createOrUpdateFile": {
                     "clientMutationId": mutation_id,
                     "file": {
                         "filepath": tmpFile,
@@ -75,12 +75,12 @@ describe("file watcher", function () {
         prepareForGqlRequest();
         tmpFile = createNewTmpfile();
         let watcher = new EDMFileWatcher({'basepath': dirToIngest});
-        const edmFile = new EDMFile(dirToIngest, path.basename(tmpFile));
+        const edmFile: EDMFile = new EDMFile(dirToIngest, path.basename(tmpFile));
         watcher.registerAndCache(edmFile)
             .then((backendResponse) => {
                 watcher.cache.getEntry(edmFile)
                     .then((doc) => {
-                        const expected = replyData.data.getOrCreateFile.file.file_transfers;
+                        const expected = replyData.data.createOrUpdateFile.file.file_transfers;
                         expect(doc.transfers[0].transfer_status).to.equal(expected[0].transfer_status);
                         expect(doc.transfers[1].transfer_status).to.equal(expected[1].transfer_status);
                         console.log(doc);

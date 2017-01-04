@@ -245,4 +245,5 @@ ModelManifest.xml
 .vscode/
 
 build/
+src/**/*.js
 edm-settings.json

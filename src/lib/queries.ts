@@ -22,43 +22,28 @@ export class EDMQueries {
                     }`;
     }
 
-    public static getOrCreateFileMutation(file: EDMFile,
-                                  source_name: string,
-                                  mutation_id?: string) : MutationOptions {
+    public static createOrUpdateFile(
+        file: EDMFile,
+        source_name: string,
+        mutation_id?: string) : MutationOptions {
 
-        // TODO: Not yet supported by backend, but this is what we'd use
-        //       Query to determine if a file needs to be transferred.
-        //       Also returns some file stats to store in local PouchDB.
-        //       We don't return atime, ctime, birthtime, mode (or hash)
-        //       since these aren't (yet) stored in the local cache.
-        // const mutation = gql`
-        // mutation getOrCreateFile($input: GetOrCreateFileInput!) {
-        //  getOrCreateFile(input: $input) {
-        //     clientMutationId
-        //     file {
-        //       filepath
-        //       size
-        //       mtime
-        //       file_transfers {
-        //           transfer_status
-        //           bytes_transferred
-        //           destination {
-        //               host_id
-        //           }
-        //       }
-        //     }
-        //  }
-        // }`;
         if (mutation_id == null) {
             mutation_id = uuidV4();
         }
 
         const mutation = gql`
-        mutation getOrCreateFile($input: GetOrCreateFileInput!) {
-         getOrCreateFile(input: $input) {
+        mutation createOrUpdateFile($input: CreateOrUpdateFileInput!) {
+         createOrUpdateFile(input: $input) {
             clientMutationId
             file {
-              filepath
+                filepath
+                file_transfers {
+                    status
+                    bytes_transferred
+                    destination {
+                        host_id
+                    }
+                }
             }
          }
         }`;
@@ -82,15 +67,15 @@ export class EDMQueries {
                                   connection: EDMConnection,
                                   mutation_id?: string): Promise<ApolloQueryResult> {
 
-        const mutation = EDMQueries.getOrCreateFileMutation(
+        const mutation = EDMQueries.createOrUpdateFile(
             file,
             source_name,
             mutation_id);
 
         return connection.mutate(mutation);
             // .then((value) => {
-            //     // console.log(JSON.stringify(value));
-            //     return value;
+            //         console.log(JSON.stringify(value));
+            //         return value;
             // });
     }
 }
