@@ -10,11 +10,6 @@
     "outDir": "build",
     "sourceMap": true,
     "target": "es6",
-    "rootDir": "src",
-    "types": [
-      "node",
-      "mocha",
-      "chai"
-    ]
+    "rootDir": "src"
   }
 }

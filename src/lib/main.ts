@@ -81,6 +81,7 @@ query MeQuery {
             },
             error: (error) => {
                 console.log("configpoll error " + error);
+                // TODO: restart startConfigPolling after a delay
             },
             complete: () => {console.log("configpoll complete")}});
         backendQuery.startPolling(EDM.pingBackendInterval);
@@ -107,7 +108,7 @@ query MeQuery {
     }
 
     private startWatcher(source: any) {
-        const watcher = new EDMFileWatcher(source.basepath);
+        const watcher = new EDMFileWatcher(source);
         this.watchers.push(watcher);
         const job = new CronJob({
             cronTime: source.cronTime,
@@ -129,8 +130,10 @@ query MeQuery {
     private stop() {
         // stop/delete all watchers etc
         this.watchers = [];
-        for (let i = 0; i < this.tasks.length; i++) {
-            this.tasks[i].stop();
+        if (this.tasks != null) {
+            for (let task of this.tasks) {
+                task.stop();
+            }
         }
         this.tasks = [];
     }

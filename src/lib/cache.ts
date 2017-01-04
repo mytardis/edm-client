@@ -11,7 +11,6 @@ var PouchDB = require('pouchdb-node');
 import EDMFile from './file_tracking';
 import {settings} from "./settings";
 import {EDMConnection} from "../edmKit/connection";
-import gql from "graphql-tag/index";
 
 
 export class EDMFileCache {
@@ -36,28 +35,31 @@ export class EDMFileCache {
             settings.conf.serverSettings.token);
         this.changes = this.db.changes({live: true, include_docs: true})
             .on('change', (change) => {
-                switch(change.doc.status) {
-                    case "unknown":
-                        //this.queryServer(change.doc);
-                        break;
-                    case "uploaded":
-                        break;
-                    case "uploading":
-                        break;
-                    case "interrupted":
-                        this.db.update(change.doc, {_rev: change.doc._rev,
-                            status: "resume"});
-                        break;
-                    case "verifying":
-                        break;
-                    case "new":
-                        // start upload
-                        break;
-                    case "modified":
-                        break;
-                    default:
-                        break;
-                }
+                // if (change.doc._dirty) {
+                //     return;
+                // }
+                // switch(change.doc.status) {
+                //     case "unknown":
+                //         //this.queryServer(change.doc);
+                //         break;
+                //     case "uploaded":
+                //         break;
+                //     case "uploading":
+                //         break;
+                //     case "interrupted":
+                //         this.db.update(change.doc, {_rev: change.doc._rev,
+                //             status: "resume"});
+                //         break;
+                //     case "verifying":
+                //         break;
+                //     case "new":
+                //         // start upload
+                //         break;
+                //     case "modified":
+                //         break;
+                //     default:
+                //         break;
+                // }
             })
             .on('complete', (info) => {
                 console.info(info);
@@ -74,27 +76,5 @@ export class EDMFileCache {
 
     getEntry(file: EDMFile) {
         return this.db.get(file._id);
-    }
-
-    private queryServer(doc: any) {
-        this.client.query(gql`query checkFile {
-          currentClient {
-            sources(id: "${this.db_name}") {
-              file(id: "${doc._id}") {
-                status
-                stats
-              }
-            }
-          }
-        }`).then((result) => {
-            // if server says never seen it,
-            // update EDMFileCached in db to status = 'new'
-            this.updateStatus(doc, result.data.status);
-        });
-    }
-
-    private updateStatus(doc: any, status: string) {
-        doc.status = status;
-        this.db.put(doc);
     }
 }

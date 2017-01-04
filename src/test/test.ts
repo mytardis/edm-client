@@ -1,4 +1,8 @@
-﻿import * as assert from "assert";
+﻿/// <reference path="../../node_modules/@types/node/index.d.ts" />
+/// <reference path="../../node_modules/@types/mocha/index.d.ts" />
+/// <reference path="../../node_modules/@types/chai/index.d.ts" />
+
+import * as assert from "assert";
 import * as child_process from "child_process";
 var path = require("path-extra");
 import * as fs from "fs";
@@ -55,7 +59,8 @@ describe("run command line program", function() {
         console.log(settings);
         // write config file
         fs.writeFileSync("test-edm-settings.json", JSON.stringify(
-            {"appSettings": {"dataDir": "testdata"}, "serverSettings":{"host":"testhost:9000"}}, null, 2));
+            {"appSettings": {"dataDir": "testdata"},
+             "serverSettings":{"host":"testhost:9000"}}, null, 2));
         child_process.exec("node app.js config -c test-edm-settings.json",
                            (error: Error, stdout: Buffer, stderr: Buffer) => {
             assert.equal(stdout.toString("utf8").trim(),
