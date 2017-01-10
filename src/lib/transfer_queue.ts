@@ -9,7 +9,7 @@ import {queue} from 'async';
 import {settings} from './settings';
 import {TransferWorker} from "./transfer_worker";
 
-export class TransferQueue {
+class TransferQueueold {
 
     private queue: stream.Readable;
     private workers: any;
@@ -47,37 +47,16 @@ export class TransferQueue {
     }
 }
 
-export const transferQueue = new TransferQueue();
 
 
-/** The klaw queue
- *
- * @type {"assert".internal|((value:any, message?:string)=>void)}
- */
-
-import * as assert from 'assert';
-
-let fs;
-
-try {
-  fs = require('graceful-fs');
-} catch (e) {
-  fs = require('fs');
-}
-
-import * as path from 'path';
-const Readable = stream.Readable;
 const Duplex = stream.Duplex;
-
-import * as util from 'util';
-import {inherits} from "util";
 
 const assign = require('./assign');
 
-class Transferer extends Duplex {
+export class TransferQueue extends Duplex {
     options: any;
 
-    constructor(options) {
+    constructor(options?: any) {
         let defaultStreamOptions = {
             objectMode: true,
             queueMethod: 'shift',
@@ -93,35 +72,4 @@ class Transferer extends Duplex {
     }
 }
 
-
-Walker.prototype._read = function () {
-  if (this.paths.length === 0) return this.push(null)
-  var self = this
-  var pathItem = this.paths[this.options.queueMethod]()
-
-  self.fs.lstat(pathItem, function (err, stats) {
-    var item = { path: pathItem, stats: stats }
-    if (err) return self.emit('error', err, item)
-    if (!stats.isDirectory()) return self.push(item)
-
-    self.fs.readdir(pathItem, function (err, pathItems) {
-      if (err) {
-        self.push(item)
-        return self.emit('error', err, item)
-      }
-
-      pathItems = pathItems.map(function (part) { return path.join(pathItem, part) })
-      if (self.options.filter) pathItems = pathItems.filter(self.options.filter)
-      if (self.options.pathSorter) pathItems.sort(self.options.pathSorter)
-      pathItems.forEach(function (pi) { self.paths.push(pi) })
-
-      self.push(item)
-    })
-  })
-}
-
-function walk (root, options) {
-  return new Walker(root, options)
-}
-
-module.exports = walk
+export const transferQueue = new TransferQueue();
