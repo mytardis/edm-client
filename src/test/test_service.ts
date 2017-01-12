@@ -27,7 +27,7 @@ describe("A mock EDM backend service", function () {
 
         expectedReplyData = {
             "data": {
-                "getOrCreateFile": {
+                "createOrUpdateFile": {
                     "clientMutationId": mutation_id,
                     "file": {
                         "filepath": tmpFile.name,

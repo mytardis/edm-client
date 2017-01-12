@@ -116,14 +116,14 @@ export class EDMFileWatcher {
         return EDMQueries.registerFileWithServer(localFile, this.source.name, this.client)
             .then((backendResponse) => {
                 const transfers = _.get(
-                    backendResponse.data.getOrCreateFile.file, 'file_transfers', []);
+                    backendResponse.data.createOrUpdateFile.file, 'file_transfers', []);
                 let doc: EDMCachedFile = localFile.getPouchDocument();
                 if (cachedRecord != null) { // we are updating an existing record
                     doc._id = cachedRecord._id;
                     doc._rev = cachedRecord._rev;
                 }
                 doc.transfers = transfers;
-                this.cache.db.put(doc).error((error) => {
+                this.cache.db.put(doc).catch((error) => {
                     console.error(`Cache put failed: ${error}`);
                 });
                 // console.log(backendResponse);
