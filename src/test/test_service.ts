@@ -44,6 +44,7 @@ describe("A mock EDM backend service", function () {
                 }
             }
         };
+
         let edmBackend = nock('http://localhost:4000').log(console.log)
             .defaultReplyHeaders({
                 'Content-Type': 'application/json; charset=utf-8'
@@ -60,7 +61,7 @@ describe("A mock EDM backend service", function () {
 
         let connection = new EDMConnection('localhost:4000', '_rand0m_JWT_t0ken');
         let file = new EDMFile('/tmp/', tmpFile.name);
-        let result = EDMQueries.registerFileWithServer(file, 'test source', connection, mutation_id)
+        let result = EDMQueries.registerFileWithServer(connection, file, 'test source', mutation_id)
             .then((value) => {
                 expect(JSON.stringify(value)).to.equal(JSON.stringify(expectedReplyData));
             })
@@ -72,5 +73,5 @@ describe("A mock EDM backend service", function () {
 
     after(function() {
         tmpFile.removeCallback();
-    })
+    });
 });

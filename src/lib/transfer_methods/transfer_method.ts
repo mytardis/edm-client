@@ -1,17 +1,17 @@
+import * as events from 'events';
 
-abstract class TransferMethod {
+export abstract class TransferMethod extends events.EventEmitter {
     /**
      * A transfer method is defined by a string and associated method class
      * (see transfer_queue).
      *
      * Each transfer method instance handles a single file.
      */
-    options: any;
 
-    constructor(options) {
-        this.options = options;
+    constructor(public options?: TransferMethodOptions) {
+        super();
     }
 
-    abstract transfer(filepath);
     // executes the transfer
+    abstract transfer(filepath: string, transfer_id?);
 }

@@ -5,71 +5,125 @@
 import * as child_process from 'child_process';
 import * as stream from 'stream';
 import {queue} from 'async';
+import * as _ from "lodash";
 
 import {settings} from './settings';
-import {TransferWorker} from "./transfer_worker";
+import {TransferManager} from "./transfer_manager";
 
-class TransferQueueold {
+const queues = {};
+const managers = {};
 
-    private queue: stream.Readable;
-    private workers: any;
+/*
+ stream.Duplex events:
+ * 'readable' - when the readability state changes (new data becomes available, or stream becomes empty)
+ * 'data' - emitted whenever data it read from the stream.
+ * 'end' - emitted when all items have been read from the stream.
+ *
+ * 'drain' - if a call to stream.write(chunk) returns false, the 'drain' event will be emitted when
+ *           it is appropriate to resume writing data to the stream.
+ *
+ * 'finish' - indicates that no more data will be written to the stream. This would only happen as
+ *           part of a clean shutdown, or if a destination_id was removed from settings.
+ * 'close' - no more data will become available. This would only happen as part of a clean shutdown,
+ *           or if a destination_id was removed from settings
+ * 'error' - ...
+ * 'pipe' - when a Readable stream is attached as a pipe
+ * 'unpipe' - when a Readable stream is detached
+ */
+export class TransferQueue extends stream.Duplex {
+    // readonly destination: EDMDestination;
+    readonly queue_id: string;
+    readonly options: any;
+    private items: Array<FileTransferJob> = [];
 
-    constructor() {
-        this.addWorker('1');
-        // this.queue = queue(
-        //     this.worker, settings.conf.appSettings.concurrency);
-        this.queue = new stream.Readable({objectMode: true});
-        this.queue._read() = function() {
-            this.push(item);
-        }
-        this.queue.on('readable', () => {
-            this.startWork();
-        })
-    }
-
-    push(fileTransfer) {
-        return this.queue.push(fileTransfer);
-    }
-
-    private startWork() {
-        for (let worker of this.workers) {
-            worker.start(this.queue);
-        }
-    }
-
-    private addWorker(worker_id: string) {
-        // this.workers[worker_id] = child_process.fork(
-        //     `${__dirname}/lib/transfer_worker.js`, [worker_id], {silent: true});
-        this.workers[worker_id] = new TransferWorker();
-        // this.workers[worker_id].on('exit', () => {
-        //     delete this.workers[worker_id];
-        // })
-    }
-}
-
-
-
-const Duplex = stream.Duplex;
-
-const assign = require('./assign');
-
-export class TransferQueue extends Duplex {
-    options: any;
-
-    constructor(options?: any) {
-        let defaultStreamOptions = {
+    constructor(queue_id: string, options?: any) {
+        super({
             objectMode: true,
-            queueMethod: 'shift',
+            // queueMethod: 'shift',
             highWaterMark: 100000,
-        };
-
-        super(defaultStreamOptions);
+        });
+        //this.destination = destination;
+        this.queue_id = queue_id;
         this.options = options;
     }
 
-    _read() {
-        this.push(nextObject);
+    /*
+     We don't create the associated TransferManager in the constructor since
+     for testing we want to test the queue in isolation, without the TransferManager
+     consuming jobs as we add them.
+     */
+    // initManager() {
+    //     this.manager = new TransferManager(this);
+    // }
+
+    // https://nodejs.org/api/stream.html#stream_writable_write_chunk_encoding_callback_1
+    _write(obj: FileTransferJob, _encoding, callback) {
+        let old_length = this.items.length;
+        this.items.push(obj);
+
+        // We don't need to do this since the parent fires 'readable' when write method is called.
+        // if (old_length === 0) {
+        //     this.emit('readable');
+        // }
+        if (callback != null) callback();
+    }
+
+    // https://nodejs.org/api/stream.html#stream_writable_writev_chunks_callback
+    // _writev(obj: FileTransferJob, callback) {
+    //     if (callback != null) callback();
+    // }
+
+    // https://nodejs.org/api/stream.html#stream_readable_read_size_1
+    _read(n: number = 1) {
+
+        let should_push: boolean;
+        let pushed_count = 0;
+        do {
+            should_push = this.push(this.items.shift() || null); // send null once array is empty
+            pushed_count++;
+
+            if (this.items.length === 0) {
+                // Parent class automatically fires this when 'null' is pushed
+                //this.emit('end');
+                break;
+            }
+
+        } while (should_push && pushed_count < n);
     }
 }
 
-export const transferQueue = new TransferQueue();
+export class TransferQueuePoolManager {
+    getQueue(queue_id: string): TransferQueue {
+        if (queues[queue_id] == null) {
+            queues[queue_id] = new TransferQueue(queue_id);
+        }
+        if (managers[queue_id] == null) {
+            managers[queue_id] = new TransferManager(queues[queue_id]);
+        }
+        return queues[queue_id];
+    }
+
+    _getManager(queue_id: string): TransferManager {
+        // ensure queue (and associated manager) is created
+        this.getQueue(queue_id);
+        return managers[queue_id];
+    }
+
+    createTransferJob(source: EDMSource,
+                      cachedFile: EDMCachedFile,
+                      transfer: EDMCachedFileTransfer): FileTransferJob {
+        return {
+            cached_file_id: cachedFile._id,
+            source_id: source.id,
+            destination_id: transfer.destination_id,
+            file_transfer_id: transfer.id,
+        } as FileTransferJob;
+    }
+
+    queueTransfer(transfer_job: FileTransferJob) {
+        let q = TransferQueuePool.getQueue(transfer_job.destination_id);
+        q.write(transfer_job);
+    }
+}
+
+export const TransferQueuePool = new TransferQueuePoolManager();

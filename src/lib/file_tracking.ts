@@ -28,6 +28,8 @@ import * as path from "path";
 import * as _ from "lodash";
 
 export default class EDMFile {
+    // TODO: these properties should be made readonly, or the hash should
+    //       automatically update if any of these properties are changed
     _id: string;
     basepath: string;
     filepath: string;
@@ -55,28 +57,36 @@ export default class EDMFile {
         }
         else {
             this.stats = stats;
-            this._computeHash();
+            this._updateHash();
         }
     }
 
-    private _computeHash() {
+    private _updateHash() {
+        this.hash = this._computeHash();
+    }
+
+    private _computeHash(): string {
         const format = 'psm';
         const hash = `${this.filepath}-${this.stats.size}-${this.stats.mtime.getTime()}`;
-        this.hash = `urn:${format}:${hash}`;
+        return `urn:${format}:${hash}`;
+    }
+
+    public static computeHash(file: EDMFile): string {
+        return file._computeHash();
     }
 
     updateStats() {
         this.stats = fs.statSync(path.resolve(this.basepath, this.filepath));
-        this._computeHash();  // may not be needed
+        this._updateHash();
     }
 
     getPouchDocument(): EDMCachedFile {
-        return <EDMCachedFile>{
+        return {
             _id: this.filepath,
             mtime: this.stats.mtime.getTime(),
             size: this.stats.size,
-            hash: this.hash
-        };
+            hash: this.hash,
+        } as EDMCachedFile;
     }
 
     getGqlVariables() {

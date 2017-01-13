@@ -78,18 +78,13 @@ describe("file watcher", function () {
         const edmFile: EDMFile = new EDMFile(dirToIngest, path.basename(tmpFile));
         watcher.registerAndCache(edmFile)
             .then((backendResponse) => {
-                watcher.cache.getEntry(edmFile)
-                    .then((doc) => {
-                        const expected = replyData.data.createOrUpdateFile.file.file_transfers;
-                        expect(doc.transfers[0].transfer_status).to.equal(expected[0].transfer_status);
-                        expect(doc.transfers[1].transfer_status).to.equal(expected[1].transfer_status);
-                        console.log(doc);
-                        done();
-                    })
-                    .catch((error) => {
-                        console.error(error);
-                        done(error);
-                    });
+                return watcher.cache.getEntry(edmFile);
+            }).then((doc) => {
+                const expected = replyData.data.createOrUpdateFile.file.file_transfers;
+                expect(doc.transfers[0].status).to.equal(expected[0].status);
+                expect(doc.transfers[1].status).to.equal(expected[1].status);
+                console.log(doc);
+                done();
             })
             .catch((error) => {
                 console.error(error);
@@ -106,7 +101,7 @@ describe("file watcher", function () {
         watcher.endWalk = () => {
             const numfiles = watcher.lastWalkItems.length;
             expect(numfiles).to.be.greaterThan(1);
-            watcher.cache.db.allDocs().then((result) => {
+            watcher.cache._db.allDocs().then((result) => {
                 console.log(`allDocs: ${JSON.stringify(result)}`);
                 console.log(`numfiles: ${numfiles}`);
                 // db adds aren't always complete yet, can be improved

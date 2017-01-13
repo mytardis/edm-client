@@ -1,12 +1,14 @@
 {
   "sources": [
     {
+      "id": "uuid-a-test-source",
       "name": "test source",
       "basepath": "/tmp/test-1",
       "checkMethod": "cron",
       "cronTime": "*/5 * * * * *",
       "destinations": [
         {
+          "id": "uuid-a-massive-destination",
           "host_id": "massive",
           "location": "/home/test/test-1",
           "exclusions": [
@@ -14,6 +16,7 @@
           ]
         },
         {
+          "id": "uuid-a-mytardis-destination",
           "host_id": "mytardis",
           "location": "test-1-bucket"
         }
@@ -21,9 +24,11 @@
     }
   ],
 
-  "hosts": {
-     "massive": {
+  "hosts": [
+     {
+         "id": "uuid-massive-host",
          "transfer_method": "scp2",
+         // TODO: 'settings' might be better named 'options', both in the edm-backend data model and throughout the client code
          "settings": {
              "host": "massive.monash.edu",
              "port": 22,
@@ -31,14 +36,15 @@
              "privateKey": "AAAABBBCCCCEEDSEFAEFAEFAEFwefaewf982y3fh9"
          }
      },
-     "mytardis": {
+     {
+         "id": "uuid-mytardis-host",
          "transfer_method": "S3",
          "settings": {
              "EC2_ACCESS_KEY": "ABC123",
              "EC2_SECRET_KEY": "CDE456"
          }
      }
-  },
+  ],
 
   "serverSettings": {
     "host": "localhost:4000",

@@ -18,7 +18,11 @@ describe("file tracker", function () {
     it("should be able to test whether the file exists in the " +
         "cache", function (done) {
         let file = new EDMFile('.', 'app.js');
-        let cache = new EDMFileCache('testdb');
+        let source = {
+            id: "test_source",
+            basepath: "."
+        } as EDMSource;
+        let cache = new EDMFileCache(source);
         cache.getEntry(file)
         .then((result) => {
             console.log(result);
@@ -31,7 +35,7 @@ describe("file tracker", function () {
         });
     });
     it("should be able to store its details in the cache and retrieve them",
-        function () {
-
+        function (done) {
+            done();
     });
 });

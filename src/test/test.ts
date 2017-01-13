@@ -54,24 +54,31 @@ describe("run command line program", function() {
                 done();
             });
         });
-    it("should output configuration when called with config", function(done) {
+    it("should output configuration when called with config", function (done) {
         ensure_cwd();
         console.log(settings);
         // write config file
         fs.writeFileSync("test-edm-settings.json", JSON.stringify(
-            {"appSettings": {"dataDir": "testdata"},
-             "serverSettings":{"host":"testhost:9000"}}, null, 2));
+            {
+                "appSettings": {"dataDir": "testdata"},
+                "serverSettings": {"host": "testhost:9000"}
+            }, null, 2));
         child_process.exec("node app.js config -c test-edm-settings.json",
-                           (error: Error, stdout: Buffer, stderr: Buffer) => {
-            assert.equal(stdout.toString("utf8").trim(),
-                         JSON.stringify(
-                             {"appSettings": {
-                                 "dataDir": "testdata",
-                                 "ignoreServerConfig": false},
-                              "serverSettings":{"host":"testhost:9000"}},
-                             null, 2));
-            done();
-        });
+            (error: Error, stdout: Buffer, stderr: Buffer) => {
+                assert.equal(stdout.toString("utf8").trim(),
+                    JSON.stringify(
+                        {
+                            "appSettings": {
+                                "dataDir": "testdata",
+                                "ignoreServerConfig": false
+                            },
+                            "serverSettings": {"host": "testhost:9000"},
+                            "sources": [],
+                            "hosts": [],
+                        },
+                        null, 2));
+                done();
+            });
     })
 });
 

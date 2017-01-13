@@ -23,10 +23,11 @@ interface AppSettings {
 
 interface Settings {
     appSettings?: AppSettings;
-    hosts?: any;
+    //hosts?: any;
+    hosts?: EDMDestinationHost[];
     sections?: any;
     serverSettings?: ServerSettings;
-    sources?: any;
+    sources?: EDMSource[];
 }
 
 type FileStatus =
@@ -46,20 +47,64 @@ interface EDMCachedFile {
     size: number;
     // status: FileStatus;
     hash: string;
-    transfers: EDMFileTransfer[];
+    transfers: EDMCachedFileTransfer[];
 }
 
 type TransferStatus = "pending_upload" | "uploading" | "complete" | "error";
 
-interface EDMFileTransfer {
-    destination: { host_id: string };
-    transfer_status: TransferStatus;
+interface EDMCachedFileTransfer {
+    id: string;
+    // file_id?: string;
+    destination_id: string;
+    status: TransferStatus;
     bytes_transferred: number;
 }
 
-interface FileTransfer {
-    transferMethod: TransferMethod;
-    filepath: string;
+type FilesystemMonitorMethod =
+    "cron"
+    | "fsnotify"
+    | "manual";
+
+interface EDMSource {
+    id: string;
+    name: string;
+    basepath: string;
+    checkMethod: FilesystemMonitorMethod;
+    cronTime?: string;
+    destinations?: EDMDestination[];
+}
+
+interface EDMDestination {
+    id: string;
+    host_id: string;
+    location: string;
+    exclusions?: string[];
+}
+
+interface EDMDestinationHost {
+    id: string;
+    transfer_method: TransferMethodName;
+    settings?: any;
+}
+
+type TransferMethodName = "dummy" | "local" | "scp2";
+
+interface FileTransferJob {
+    //_id: string;
+    cached_file_id: string;
+    source_id: string;
+    destination_id: string;
+    file_transfer_id: string;
+    //method: TransferMethodName;
+    //settings: any;
+}
+
+interface TransferMethodOptions {
+    destBasePath?: string;
+    sourceBasePath?: string;
+    method_opts?: any;
+    // Allows any property accessed like options['somePropName']. Dangerous.
+    // [propName: string]: any;
 }
 
 declare module "scp2" {

@@ -1,13 +1,45 @@
 const uuidV4 = require('uuid/v4');
 import gql from "graphql-tag/index";
+import * as _ from "lodash";
 
 import {MutationOptions} from "apollo-client";
 import {ApolloQueryResult} from "apollo-client";
+import {ObservableQuery} from "apollo-client";
 
 import {EDMConnection} from "../edmKit/connection";
 import EDMFile from "./file_tracking";
 
 export class EDMQueries {
+
+    public static configQuery(connection: EDMConnection,
+                              variables = {}): ObservableQuery {
+        const query = gql`query MeQuery {
+                              currentClient {
+                                id
+                                attributes
+                                  sources {
+                                  id
+                                  name
+                                  destinations {
+                                    id
+                                    base
+                                    host {
+                                      id
+                                    }
+                                  }
+                                }
+                                hosts {
+                                  id
+                                  settings
+                                  name
+                                }
+                              }
+                            }`;
+        return connection.watchQuery({
+            query: query,
+            variables: variables,
+        });
+    }
 
     public static checkFileQuery(file: EDMFile, source_name: string) {
         return gql`query checkFile {
@@ -38,6 +70,7 @@ export class EDMQueries {
             file {
                 filepath
                 file_transfers {
+                    id
                     status
                     bytes_transferred
                     destination {
@@ -51,20 +84,27 @@ export class EDMQueries {
             "input": {
                 "clientMutationId": mutation_id,
                 "source": {"name": source_name},
-                "file": file.getGqlVariables()
+                // "file": file.getGqlVariables(),
+                "file": EDMQueries.getEDMFileGqlVariables(file),
             }
         };
 
-        return <MutationOptions>{
-                mutation: mutation,
-                variables: vars
-        };
+        return {
+            mutation: mutation,
+            variables: vars
+        } as MutationOptions;
+    }
+
+    public static getEDMFileGqlVariables(file: EDMFile) {
+        let variables = _.pick(file.stats, ['size', 'mtime', 'atime', 'ctime', 'birthtime', 'mode']);
+        variables['filepath'] = file.filepath;
+        return variables;
     }
 
     public static registerFileWithServer(
+                                  connection: EDMConnection,
                                   file: EDMFile,
                                   source_name: string,
-                                  connection: EDMConnection,
                                   mutation_id?: string): Promise<ApolloQueryResult> {
 
         const mutation = EDMQueries.createOrUpdateFile(
@@ -77,5 +117,31 @@ export class EDMQueries {
             //         console.log(JSON.stringify(value));
             //         return value;
             // });
+    }
+
+    public static updateFileTransfer(connection: EDMConnection,
+                                     transfer: EDMCachedFileTransfer): Promise<ApolloQueryResult> {
+        const query = gql`
+        mutation updateFileTransfer($input: UpdateFileTransferInput!) {
+         updateFileTransfer(input: $input) {
+            clientMutationId
+            file_transfers {
+                id
+                status
+                bytes_transferred
+            }
+         }
+        }
+        `;
+        const mutation = {
+            mutation: query,
+            variables: {
+                id: transfer.id,
+                bytes_transferred: transfer.bytes_transferred,
+                status: transfer.status,
+            }
+        } as MutationOptions;
+
+        return connection.mutate(mutation);
     }
 }

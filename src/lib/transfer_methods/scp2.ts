@@ -4,7 +4,7 @@
 import * as path from "path";
 
 import { Client } from 'scp2';
-
+import {TransferMethod} from './transfer_method';
 
 export class SCP2Transfer extends TransferMethod {
     client: Client;
@@ -14,25 +14,33 @@ export class SCP2Transfer extends TransferMethod {
         // insert sanitizing code here
         sanitized_options = options;
         super(sanitized_options);
-        this.client = new Client(this.options.ssh_opts);
+        this.client = new Client(this.options.method_opts);
     }
 
-    transfer(filepath) {
-        this.client.upload(
-            this.getSourcePath(),
-            this.getDestinationPath(),
-            this.handleError);
+    transfer(filepath: string, file_transfer_id: string, progressCallback?): Promise<string> {
+        return new Promise((resolve, reject) => {
+            this.client.upload(
+                this.getSourcePath(filepath),
+                this.getDestinationPath(filepath),
+                (error) => {
+                    if (error == null) {
+                        resolve(file_transfer_id);
+                    } else {
+                        reject(error);
+                    }
+                });
+        });
     }
 
-    private getSourcePath() {
-        return path.join(this.options.sourceBasePath, this.filepath);
+    private getSourcePath(filepath: string) {
+        return path.join(this.options.sourceBasePath, filepath);
     }
 
-    private getDestinationPath() {
-        return path.join(this.options.destinationBasePath, this.filepath);
+    private getDestinationPath(filepath: string) {
+        return path.join(this.options.destBasePath, filepath);
     }
 
-    private handleError(error) {
-        console.error(error);
-    }
+    // private handleError(error) {
+    //     console.error(error);
+    // }
 }

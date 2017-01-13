@@ -1,7 +1,6 @@
 import * as path from 'path';
 import * as _ from "lodash";
 const fs = require('fs-extra');
-const querystring = require('querystring');
 
 import {ApolloQueryResult} from "apollo-client";
 
@@ -15,16 +14,14 @@ import {EDMQueries} from "./queries";
 
 export class EDMFileWatcher {
     client: EDMConnection;
-    source: any;            // TODO: define <EDMFileSource> interface ?
-    basepath: string;        // TODO: make this: get basepath { return this.source.basepath };
+    source: EDMSource;
     cache: EDMFileCache;
     filters: any = [];
     lastWalkItems: any;
 
     constructor(source: any, exclude?: any) {
         this.source = source;
-        this.basepath = this.source.basepath;
-        this.cache = new EDMFileCache(querystring.escape(this.basepath));
+        this.cache = new EDMFileCache(this.source);
         if (exclude != null) {
             const excluder = new RegExp(exclude);
             let exclude_filter = (path) => {
@@ -39,7 +36,7 @@ export class EDMFileWatcher {
 
     walk(job?: any) {
         // using https://github.com/jprichardson/node-klaw
-        const walker = fs.walk(this.basepath);
+        const walker = fs.walk(this.source.basepath);
         const items = [];
         for (let filter of this.filters) {
             walker.pipe(through2.obj((item, enc, next) => {
@@ -64,14 +61,14 @@ export class EDMFileWatcher {
             console.log('file is null');
             return;
         }
-        if (file.path == this.basepath) {
+        if (file.path === this.source.basepath) {
             console.log("handleFile: skipping handling basepath '.' file")
             return;
         }
 
         // console.log(file);
-        const relpath = path.relative(this.basepath, file.path);
-        let edmFile = new EDMFile(this.basepath, relpath, file.stats);
+        const relpath = path.relative(this.source.basepath, file.path);
+        let edmFile = new EDMFile(this.source.basepath, relpath, file.stats);
         this.cache.getEntry(edmFile).then((cached) => {
 
             // compare on-disk to local db
@@ -113,7 +110,7 @@ export class EDMFileWatcher {
     }
 
     public registerAndCache(localFile: EDMFile, cachedRecord?: EDMCachedFile): Promise<ApolloQueryResult> {
-        return EDMQueries.registerFileWithServer(localFile, this.source.name, this.client)
+        return EDMQueries.registerFileWithServer(this.client, localFile, this.source.name)
             .then((backendResponse) => {
                 const transfers = _.get(
                     backendResponse.data.createOrUpdateFile.file, 'file_transfers', []);
@@ -123,7 +120,7 @@ export class EDMFileWatcher {
                     doc._rev = cachedRecord._rev;
                 }
                 doc.transfers = transfers;
-                this.cache.db.put(doc).catch((error) => {
+                this.cache.addFile(doc).catch((error) => {
                     console.error(`Cache put failed: ${error}`);
                 });
                 // console.log(backendResponse);
@@ -139,7 +136,7 @@ export class EDMFileWatcher {
     private handleError(error: any, job?: any) {
         console.error(error);
         if (error.code == "ENOENT" &&
-            error.path === path.resolve(this.basepath))
+            error.path === path.resolve(this.source.basepath))
             if (job != null) {
                 console.error("stopping cron job");
                 job.stop();
