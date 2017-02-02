@@ -23,9 +23,7 @@ export class EDMQueries {
                                   destinations {
                                     id
                                     base
-                                    host {
-                                      id
-                                    }
+                                    hostId
                                   }
                                 }
                                 hosts {
@@ -64,22 +62,26 @@ export class EDMQueries {
         }
 
         const mutation = gql`
-        mutation createOrUpdateFile($input: CreateOrUpdateFileInput!) {
-         createOrUpdateFile(input: $input) {
-            clientMutationId
-            file {
-                filepath
-                file_transfers {
-                    id
-                    status
-                    bytes_transferred
-                    destination {
-                        host_id
+            mutation createOrUpdateFile($input: CreateOrUpdateFileInput!) {
+                createOrUpdateFile(input: $input) {
+                 clientMutationId
+                    file {
+                      filepath
+                      fileTransfers(first: 999) {
+                        edges {
+                          node {
+                            id
+                            status
+                            bytesTransferred
+                            destination {
+                              hostId
+                            }
+                          }
+                        }
+                      }
                     }
-                }
-            }
-         }
-        }`;
+                  }
+              }`;
         const vars = {
             "input": {
                 "clientMutationId": mutation_id,
@@ -124,12 +126,18 @@ export class EDMQueries {
         const query = gql`
         mutation updateFileTransfer($input: UpdateFileTransferInput!) {
          updateFileTransfer(input: $input) {
-            clientMutationId
-            file_transfers {
-                id
+          clientMutationId
+          fileTransfers(first: 999) {
+            edges {
+              node {
                 status
-                bytes_transferred
+                bytesTransferred
+                destination {
+                  hostId
+                }
+              }
             }
+          }
          }
         }
         `;
