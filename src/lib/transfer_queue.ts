@@ -21,6 +21,7 @@ const managers = {};
  *
  * 'drain' - if a call to stream.write(chunk) returns false, the 'drain' event will be emitted when
  *           it is appropriate to resume writing data to the stream.
+ *           http://ey3ball.github.io/posts/2014/07/17/node-streams-back-pressure/
  *
  * 'finish' - indicates that no more data will be written to the stream. This would only happen as
  *           part of a clean shutdown, or if a destination_id was removed from settings.
@@ -120,9 +121,9 @@ export class TransferQueuePoolManager {
         } as FileTransferJob;
     }
 
-    queueTransfer(transfer_job: FileTransferJob) {
+    queueTransfer(transfer_job: FileTransferJob): boolean {
         let q = TransferQueuePool.getQueue(transfer_job.destination_id);
-        q.write(transfer_job);
+        return q.write(transfer_job);
     }
 }
 

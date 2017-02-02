@@ -93,6 +93,7 @@ describe("The transfer queue ", function () {
         let tq = new TransferQueue(destination.id);
 
         let readable_events_fired: number = 0;
+        let drain_events_fired: number = 0;
         tq.on('readable', () => {
             readable_events_fired++;
             console.log(`Queue ${tq.queue_id} -> 'readable' event.`);
@@ -100,9 +101,17 @@ describe("The transfer queue ", function () {
         tq.on('data', (obj) => {
             console.log(`Queue ${tq.queue_id} -> 'data' event:\n${JSON.stringify(obj)}`);
         });
+        tq.on('drain', () => {
+            // 'drain' will only be emitted when the internal stream buffer has
+            // become full (stream.write(job) will return false), then empties and
+            // can accept more writes
+            drain_events_fired++;
+            console.log(`Queue ${tq.queue_id} -> 'drain' event`);
+        });
         tq.on('end', () => {
             console.log(`Queue ${tq.queue_id} became empty -> 'end' event.`);
             expect(readable_events_fired).to.equal(2);
+            expect(drain_events_fired).to.equal(0);
             done();
         });
 
@@ -120,13 +129,14 @@ describe("The transfer queue ", function () {
     });
 
     it("should be able to write and read tasks many tasks from a queue", function (done) {
-        const number_of_file_transfers = 10000;
+        const number_of_file_transfers = 20000;
 
         setupSettings();
 
         let tq = new TransferQueue(destination.id);
 
         let readable_events_fired: number = 0;
+        let drain_events_fired: number = 0;
         tq.on('readable', () => {
             readable_events_fired++;
             console.log(`Queue ${tq.queue_id} -> 'readable' event.`);
@@ -134,11 +144,19 @@ describe("The transfer queue ", function () {
         tq.on('data', (obj) => {
             //console.log(`Queue ${tq.queue_id} -> 'data' event:\n${JSON.stringify(obj)}`);
         });
+        tq.on('drain', () => {
+            // 'drain' will only be emitted when the internal stream buffer has
+            // become full (stream.write(job) will return false), then empties and
+            // can accept more writes
+            drain_events_fired++;
+            console.log(`Queue ${tq.queue_id} -> 'drain' event`);
+        });
         tq.on('end', () => {
             console.log(`Queue ${tq.queue_id} became empty -> 'end' event.`);
             // even though we add many jobs 'readable' only fires twice - once when the stream first get data, and a
             // second time when it becomes empty
             expect(readable_events_fired).to.equal(2);
+            expect(drain_events_fired).to.equal(0);
             done();
         });
 
@@ -152,7 +170,8 @@ describe("The transfer queue ", function () {
                 file_transfer_id: randomString(),
             } as FileTransferJob;
             jobs.push(job);
-            tq.write(job);
+            let ok = tq.write(job);
+            expect(ok).to.be.true;
         }
 
         for (let n=0; n < number_of_file_transfers; n++) {

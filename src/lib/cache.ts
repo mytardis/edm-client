@@ -101,7 +101,14 @@ export class EDMFileCache {
                 //          'pending_upload' on server and deleted from local
                 //          transfer cache)
                 let xfer_job = TransferQueuePool.createTransferJob(this.source, cachedFile, xfer);
-                TransferQueuePool.queueTransfer(xfer_job);
+                let queued_ok = TransferQueuePool.queueTransfer(xfer_job);
+                if (!queued_ok) {
+                    // TODO: If the the stream is saturated (highWaterMark exceeded), we need to wait
+                    //       until it emits the 'drain' event before attempting to queue more.
+                    //       The stream will still internally buffer until it exceeds available memory,
+                    //       even when saturated, but we should avoid doing this and respect back pressure.
+                    throw Error(`[Not implemented]: TransferQueue ${xfer.destination_id} is saturated. File transfer ${xfer.id} must be queued later`);
+                }
             }
         }
     }
