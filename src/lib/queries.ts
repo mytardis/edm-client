@@ -13,6 +13,8 @@ export class EDMQueries {
 
     public static configQuery(connection: EDMConnection,
                               variables = {}): ObservableQuery {
+
+        // TODO: Use this version once destinations { hostId } works
         const query = gql`query MeQuery {
                               currentClient {
                                 id
@@ -20,10 +22,11 @@ export class EDMQueries {
                                   sources {
                                   id
                                   name
+                                  settings
                                   destinations {
                                     id
                                     base
-                                    hostId
+                                    host { id }
                                   }
                                 }
                                 hosts {
@@ -33,6 +36,27 @@ export class EDMQueries {
                                 }
                               }
                             }`;
+
+        // const query = gql`query MeQuery {
+        //                       currentClient {
+        //                         id
+        //                         attributes
+        //                           sources {
+        //                           id
+        //                           name
+        //                           settings
+        //                           destinations {
+        //                             id
+        //                             base
+        //                           }
+        //                         }
+        //                         hosts {
+        //                           id
+        //                           settings
+        //                           name
+        //                         }
+        //                       }
+        //                     }`;
         return connection.watchQuery({
             query: query,
             variables: variables,
@@ -67,14 +91,14 @@ export class EDMQueries {
                  clientMutationId
                     file {
                       filepath
-                      fileTransfers(first: 999) {
+                      file_transfers(first: 999) {
                         edges {
                           node {
                             id
                             status
-                            bytesTransferred
+                            bytes_transferred
                             destination {
-                              hostId
+                              host { id }
                             }
                           }
                         }
@@ -127,16 +151,10 @@ export class EDMQueries {
         mutation updateFileTransfer($input: UpdateFileTransferInput!) {
          updateFileTransfer(input: $input) {
           clientMutationId
-          fileTransfers(first: 999) {
-            edges {
-              node {
-                status
-                bytesTransferred
-                destination {
-                  hostId
-                }
-              }
-            }
+          file_transfer {
+              id
+              status
+              bytes_transferred
           }
          }
         }
@@ -145,8 +163,10 @@ export class EDMQueries {
             mutation: query,
             variables: {
                 id: transfer.id,
-                bytes_transferred: transfer.bytes_transferred,
-                status: transfer.status,
+                file_transfer: {
+                    bytes_transferred: transfer.bytes_transferred,
+                    status: transfer.status
+                }
             }
         } as MutationOptions;
 

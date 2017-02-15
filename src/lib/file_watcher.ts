@@ -75,7 +75,7 @@ export class EDMFileWatcher {
             if (this.fileHasChanged(edmFile, cached)) {
                 this.registerAndCache(edmFile, cached);
             }
-            console.log(`${cached._id} is in cache (transfers: ${cached.transfers})`);
+            console.log(`${cached._id} is in cache (transfers: ${JSON.stringify(cached.transfers)})`);
         }).catch((error) => {
             if (error.name === "not_found") {
                 // new file (unknown to client, may be known to server if local cache was cleared)
@@ -101,13 +101,13 @@ export class EDMFileWatcher {
                 file.hash !== cachedFile.hash);
     }
 
-    private needsUpload(cachedRecord: EDMCachedFile) {
-        return _.some(cachedRecord.transfers, {transfer_status: 'pending_upload'});
-    }
-
-    private pendingTransfers(cachedRecord: EDMCachedFile) {
-        return _.filter(cachedRecord.transfers, {transfer_status: 'pending_upload'});
-    }
+    // private needsUpload(cachedRecord: EDMCachedFile) {
+    //     return _.some(cachedRecord.transfers, {transfer_status: 'pending_upload'});
+    // }
+    //
+    // private pendingTransfers(cachedRecord: EDMCachedFile) {
+    //     return _.filter(cachedRecord.transfers, {transfer_status: 'pending_upload'});
+    // }
 
     public registerAndCache(localFile: EDMFile, cachedRecord?: EDMCachedFile): Promise<ApolloQueryResult> {
         return EDMQueries.registerFileWithServer(this.client, localFile, this.source.name)

@@ -50,7 +50,7 @@ interface EDMCachedFile {
     transfers: EDMCachedFileTransfer[];
 }
 
-type TransferStatus = "pending_upload" | "uploading" | "complete" | "error";
+type TransferStatus = "new" | "pending_upload" | "queued" | "uploading" | "complete" | "error";
 
 interface EDMCachedFileTransfer {
     id: string;
