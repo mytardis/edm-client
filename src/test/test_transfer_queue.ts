@@ -247,7 +247,7 @@ describe("The transfer queue ", function () {
 
         // TODO: Never fires ?
         manager.on('transfer_complete', (transfer_id, bytes) => {
-            console.log('done never fires');
+            console.info(`Transfer ${transfer_id} of ${bytes} bytes completed`);
             done();
         });
 
