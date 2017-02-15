@@ -12,6 +12,8 @@ import EDMFile from "../lib/file_tracking"
 import {EDMFileCache} from "../lib/cache";
 import {DummyTransfer} from "../lib/transfer_methods/dummy_transfer";
 
+var eventDebug = require('event-debug');
+
 describe("The transfer queue ", function () {
     let host: EDMDestinationHost;
     let destination: EDMDestination;
@@ -204,7 +206,6 @@ describe("The transfer queue ", function () {
     });
 
     it("should add a file to the transfer queue when it has pending file transfers", function (done) {
-        setupSettings();
 
         let now = Math.floor(Date.now() / 1000);
 
@@ -226,8 +227,8 @@ describe("The transfer queue ", function () {
             transfers: [transferRecord],
         } as EDMCachedFile;
 
-        let tq = TransferQueuePool.getQueue(destination.id);
-        let manager = TransferQueuePool._getManager(destination.id);
+        let manager = TransferQueuePool.getManager(destination.id);
+        let tq = manager.queue;
 
         tq.on('readable', () => {
             console.log(`Queue ${tq.queue_id} became readable`);
@@ -244,9 +245,9 @@ describe("The transfer queue ", function () {
             // done();
         });
 
-
         // TODO: Never fires ?
         manager.on('transfer_complete', (transfer_id, bytes) => {
+            console.log('done never fires');
             done();
         });
 

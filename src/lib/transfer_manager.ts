@@ -17,7 +17,7 @@ export class TransferManager extends events.EventEmitter {
     private client: EDMConnection;
     private method: TransferMethod;
 
-    constructor(queue: TransferQueue) {
+    constructor(queue_id: string) {
         super();
 
         this.concurrency = settings.conf.appSettings.maxAsyncTransfers;
@@ -28,7 +28,7 @@ export class TransferManager extends events.EventEmitter {
                 settings.conf.serverSettings.token);
         }
 
-        this.queue = queue;
+        this.queue = new TransferQueue(queue_id);
 
         // We must pass this lambda as the event callback, rather than the
         // bare class method, otherwise the context of 'this' will be wrong in the

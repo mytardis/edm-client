@@ -10,9 +10,6 @@ import * as _ from "lodash";
 import {settings} from './settings';
 import {TransferManager} from "./transfer_manager";
 
-const queues = {};
-const managers = {};
-
 /*
  stream.Duplex events:
  * 'readable' - when the readability state changes (new data becomes available, or stream becomes empty)
@@ -94,20 +91,19 @@ export class TransferQueue extends stream.Duplex {
 }
 
 export class TransferQueuePoolManager {
+    managers = {};
+
     getQueue(queue_id: string): TransferQueue {
-        if (queues[queue_id] == null) {
-            queues[queue_id] = new TransferQueue(queue_id);
+        if (this.managers[queue_id] == null) {
+            this.managers[queue_id] = new TransferManager(queue_id);
         }
-        if (managers[queue_id] == null) {
-            managers[queue_id] = new TransferManager(queues[queue_id]);
-        }
-        return queues[queue_id];
+        return this.managers[queue_id].queue;
     }
 
-    _getManager(queue_id: string): TransferManager {
+    getManager(queue_id: string): TransferManager {
         // ensure queue (and associated manager) is created
         this.getQueue(queue_id);
-        return managers[queue_id];
+        return this.managers[queue_id];
     }
 
     createTransferJob(source: EDMSource,

@@ -9,8 +9,8 @@ describe("A transfer method ", function () {
 
 
     it("can show progress using the example 'dummy' transfer method", function (done) {
+        this.timeout(5000);
         let file_transfer_id = "a-file-transfer-uuid";
-
         function logProgress(id: string, bytes: number) {
             console.info(`${id}: ${bytes} bytes`)
         }
