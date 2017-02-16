@@ -43,6 +43,7 @@
     "babel-relay-plugin": "^0.9.2",
     "chai": "^3.5.0",
     "cron": "^1.1.1",
+    "event-debug": "^1.0.1",
     "fs-extra": "^0.30.0",
     "graphql-typings": "0.0.1-beta-2",
     "mocha": "^2.5.3",

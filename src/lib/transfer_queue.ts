@@ -29,6 +29,7 @@ import {TransferManager} from "./transfer_manager";
  * 'unpipe' - when a Readable stream is detached
  */
 export class TransferQueue extends stream.Duplex {
+
     // readonly destination: EDMDestination;
     readonly queue_id: string;
     readonly options: any;
@@ -91,7 +92,7 @@ export class TransferQueue extends stream.Duplex {
 }
 
 export class TransferQueuePoolManager {
-    managers = {};
+    private managers = {};
 
     getQueue(queue_id: string): TransferQueue {
         if (this.managers[queue_id] == null) {
