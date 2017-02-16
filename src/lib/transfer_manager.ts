@@ -16,6 +16,7 @@ export class TransferManager extends events.EventEmitter {
     concurrency: number;
     private client: EDMConnection;
     private method: TransferMethod;
+    private paused: boolean = false;
 
     constructor(queue_id: string) {
         super();
@@ -34,7 +35,7 @@ export class TransferManager extends events.EventEmitter {
         // bare class method, otherwise the context of 'this' will be wrong in the
         // method. See: https://github.com/Microsoft/TypeScript/wiki/'this'-in-TypeScript
         // this.queue.on('readable', this.start);  // <- 'this' will be wrong !
-        this.queue.on('readable', () => this.start());
+        this.queue.on('readable', () => { this.start() });
 
         // this.queue.on('data', (transfer: FileTransferJob) => {
         //     this.transferFile(transfer)
@@ -74,9 +75,19 @@ export class TransferManager extends events.EventEmitter {
 
     start() {
         let transfer : FileTransferJob;
-        while (null !== (transfer = this.queue.read())) {
+        while (!this.paused &&
+               null !== (transfer = this.queue.read())) {
             this.transferFile(transfer);
         }
+    }
+
+    pause() {
+        this.paused = true;
+    }
+
+    unpause() {
+        this.paused = false;
+        this.queue.on('readable', () => { this.start() });
     }
 
     private transferFile(transferJob: FileTransferJob) {
@@ -105,7 +116,9 @@ export class TransferManager extends events.EventEmitter {
     }
 
     private onUpdateProgress(file_transfer_id: string, bytes_transferred: number) {
-        console.info(`Transfer ${file_transfer_id}: ${bytes_transferred} bytes`);
+        console.info(`Transfer {FileTransferJob: ${file_transfer_id}, ` +
+                     `TransferManager: ${this.queue.queue_id}, ` +
+                     `bytes_transferred: ${bytes_transferred}}`);
 
         let cachedTransfer = {
             id: file_transfer_id,
