@@ -75,23 +75,10 @@ export class EDMFileCache {
     queuePendingTransfers(cachedFile: EDMCachedFile) {
         for (let xfer of cachedFile.transfers) {
             if (xfer.status === 'pending_upload') {
-                // let fullpath = path.join(this.basepath, cachedFile._id);
-                // let host = settings.conf.hosts[xfer.destination.host_id] as EDMDestinationHost;
-                // let destination = {
-                //     host: host,
-                //     location: this.basepath,
-                // } as EDMDestination;
-
                 // TODO: How do we prevent a transfer being queued twice ?
                 //       One way - as soon as transfer is queued, update the
-                //       server with an 'uploading' status (and the local PouchDB
-                //       EDMCachedFile record upon response). Will look misleading
-                //       since 'queued' files will appear as stalled uploads.
-                //       Maybe we need a 'queued' status to deal with that.
-                //       If the upload fails, we need
-                //       to revert that status - but this won't be possible for
-                //       hard crash, so we need to persist transfers locally for
-                //       recovery on restart.
+                //       server with an 'queued' status (and the local PouchDB
+                //       EDMCachedFile record upon response).
                 //
                 //       Items currently queued and uploading transfers should
                 //       be in a PouchDB so we can:
@@ -102,6 +89,12 @@ export class EDMFileCache {
                 //          transfer cache)
                 let xfer_job = TransferQueuePool.createTransferJob(this.source, cachedFile, xfer);
                 let queued_ok = TransferQueuePool.queueTransfer(xfer_job);
+
+                // TESTING: Calling TransferManager.start() here works, since the timing
+                //          of async calls means the queue hasn't get received end event ?
+                // TransferQueuePool.getQueue(xfer_job.destination_id).resume();
+                // TransferQueuePool.getManager(xfer_job.destination_id).start();
+
                 if (!queued_ok) {
                     // TODO: If the the stream is saturated (highWaterMark exceeded), we need to wait
                     //       until it emits the 'drain' event before attempting to queue more.

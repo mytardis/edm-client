@@ -9,6 +9,7 @@
   "dependencies": {
     "@types/npm": "^2.0.28",
     "apollo-client": "^0.5.8",
+    "async": "^2.0.1",
     "graphql": "^0.7.2",
     "graphql-tag": "^0.1.17",
     "graphql-tools": "^0.6.6",
@@ -28,6 +29,7 @@
     "start": "cd build && node app"
   },
   "devDependencies": {
+    "@types/async": "^2.0.38",
     "@types/chai": "^3.4.33",
     "@types/cron": "^1.0.30",
     "@types/fs-extra": "0.0.32",

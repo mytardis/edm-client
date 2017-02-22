@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as events from 'events';
 
 import {settings} from "./settings";
+import {TransferStream} from "./transfer_queue";
 import {TransferQueue} from "./transfer_queue";
 import {TransferMethod} from "./transfer_methods/transfer_method";
 import {DummyTransfer} from "./transfer_methods/dummy_transfer";
@@ -12,7 +13,7 @@ import {EDMFileCache} from "./cache";
 
 export class TransferManager extends events.EventEmitter {
 
-    queue: TransferQueue;
+    queue: ITransferQueue;
     concurrency: number;
     private client: EDMConnection;
     private method: TransferMethod;
@@ -29,25 +30,30 @@ export class TransferManager extends events.EventEmitter {
                 settings.conf.serverSettings.token);
         }
 
-        this.queue = new TransferQueue(queue_id);
+        this.queue = new TransferQueue(queue_id, this);
+
+        /*
+        // An implementation of the job queue as a stream.Duplex.
+        // Unlike the alternative TransferQueue (async.queue) implementation
+        // which pushes jobs to this manager as a worker, here we pull jobs off
+        // the queue as they become available.
+
+        this.queue = new TransferStream(queue_id);
 
         // We must pass this lambda as the event callback, rather than the
         // bare class method, otherwise the context of 'this' will be wrong in the
         // method. See: https://github.com/Microsoft/TypeScript/wiki/'this'-in-TypeScript
         // this.queue.on('readable', this.start);  // <- 'this' will be wrong !
-        this.queue.on('readable', () => { this.start() });
+        this.queue.on('readable', () => {
+            this.start()
+        });
 
         // this.queue.on('data', (transfer: FileTransferJob) => {
-        //     this.transferFile(transfer)
-        //         .then(() => {
-        //             // this runs when the transfer is successfully completed.
-        //             // equivalent to the method.on('complete', ()=>{}) event.
-        //             console.log(`File transfer completed: ${transfer.file_transfer_id}`);
-        //         })
-        //         .catch((error) => {
-        //             console.error(`File transfer failed: ${error}`);
-        //         });
+        //     if (transfer != null) {
+        //         this.transferFile(transfer);
+        //     }
         // });
+        */
 
     }
 
@@ -74,11 +80,23 @@ export class TransferManager extends events.EventEmitter {
     }
 
     start() {
-        let transfer : FileTransferJob;
+        // let transfer : FileTransferJob;
+        let transfer;
+        let tq = this.queue;
         while (!this.paused &&
-               null !== (transfer = this.queue.read())) {
+               !tq.isPaused() &&
+               null !== (transfer = this.queue.read()) ) {
+
+            // TEST: This is the wrong way to read from the stream (popping off the internal array) !
+            //       However, if this.queue.read() fails to produce data since the stream is 'ended', this works
+            //let transfer = this.queue.items.pop();
             this.transferFile(transfer);
         }
+    }
+
+    doTask(job, doneCallback) {
+        this.transferFile(job);
+        doneCallback();
     }
 
     pause() {
@@ -117,7 +135,7 @@ export class TransferManager extends events.EventEmitter {
 
     private onUpdateProgress(file_transfer_id: string, bytes_transferred: number) {
         console.info(`Transfer {FileTransferJob: ${file_transfer_id}, ` +
-                     `TransferManager: ${this.queue.queue_id}, ` +
+                     `queue_id: ${this.queue.queue_id}, ` +
                      `bytes_transferred: ${bytes_transferred}}`);
 
         let cachedTransfer = {

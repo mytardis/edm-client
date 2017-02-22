@@ -3,7 +3,7 @@ import * as path from 'path';
 import {TransferMethod} from './transfer_method';
 
 export class DummyTransfer extends TransferMethod {
-    total_time: number = 2000;
+    total_time: number = 500;
     total_bytes: number = 1024;
     percent_increment: number = 10;
     simulate_error_at?: number = null;

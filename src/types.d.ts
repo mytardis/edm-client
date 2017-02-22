@@ -107,6 +107,15 @@ interface TransferMethodOptions {
     // [propName: string]: any;
 }
 
+interface ITransferQueue {
+    queue_id: string;
+    options?: any;
+    write(job: FileTransferJob): boolean;
+    read?(n?: number);
+    isPaused(): boolean;
+    on(eventName: string, callback: Function);
+}
+
 declare module "scp2" {
 
     interface ScpOptions {
