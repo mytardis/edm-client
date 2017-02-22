@@ -2,14 +2,11 @@ import * as path from 'path';
 import * as events from 'events';
 
 import {settings} from "./settings";
-import {TransferStream} from "./transfer_queue";
 import {TransferQueue} from "./transfer_queue";
 import {TransferMethod} from "./transfer_methods/transfer_method";
-import {DummyTransfer} from "./transfer_methods/dummy_transfer";
 import {TransferMethodPlugins} from "./transfer_methods/transfer_method_plugins";
 import {EDMConnection} from "../edmKit/connection";
 import {EDMQueries} from "./queries";
-import {EDMFileCache} from "./cache";
 
 export class TransferManager extends events.EventEmitter {
 
@@ -17,9 +14,9 @@ export class TransferManager extends events.EventEmitter {
     concurrency: number;
     private client: EDMConnection;
     private method: TransferMethod;
-    private paused: boolean = false;
+    private _paused: boolean = false;
 
-    constructor(queue_id: string) {
+    constructor(queue_id: string, options?: any) {
         super();
 
         this.concurrency = settings.conf.appSettings.maxAsyncTransfers;
@@ -30,31 +27,7 @@ export class TransferManager extends events.EventEmitter {
                 settings.conf.serverSettings.token);
         }
 
-        this.queue = new TransferQueue(queue_id, this);
-
-        /*
-        // An implementation of the job queue as a stream.Duplex.
-        // Unlike the alternative TransferQueue (async.queue) implementation
-        // which pushes jobs to this manager as a worker, here we pull jobs off
-        // the queue as they become available.
-
-        this.queue = new TransferStream(queue_id);
-
-        // We must pass this lambda as the event callback, rather than the
-        // bare class method, otherwise the context of 'this' will be wrong in the
-        // method. See: https://github.com/Microsoft/TypeScript/wiki/'this'-in-TypeScript
-        // this.queue.on('readable', this.start);  // <- 'this' will be wrong !
-        this.queue.on('readable', () => {
-            this.start()
-        });
-
-        // this.queue.on('data', (transfer: FileTransferJob) => {
-        //     if (transfer != null) {
-        //         this.transferFile(transfer);
-        //     }
-        // });
-        */
-
+        this.queue = new TransferQueue(queue_id, this, options);
     }
 
     private initTransferMethod(destinationHost: EDMDestinationHost, destination: EDMDestination) {
@@ -72,26 +45,6 @@ export class TransferManager extends events.EventEmitter {
         this.method.on('start', (id, bytes) => this.onUpdateProgress(id, bytes));
         this.method.on('progress', (id, bytes) => this.onUpdateProgress(id, bytes));
         this.method.on('complete', (id, bytes) => this.onTransferComplete(id, bytes));
-
-        // Alternative: use a static method and and static instance of EDMClient for onUpdateProgress
-        // this.method.once('start', TransferManager.onUpdateProgress);
-        // this.method.on('progress', TransferManager.onUpdateProgress);
-        // this.method.once('complete', (id, bytes) => this.onTransferComplete(id, bytes));
-    }
-
-    start() {
-        // let transfer : FileTransferJob;
-        let transfer;
-        let tq = this.queue;
-        while (!this.paused &&
-               !tq.isPaused() &&
-               null !== (transfer = this.queue.read()) ) {
-
-            // TEST: This is the wrong way to read from the stream (popping off the internal array) !
-            //       However, if this.queue.read() fails to produce data since the stream is 'ended', this works
-            //let transfer = this.queue.items.pop();
-            this.transferFile(transfer);
-        }
     }
 
     doTask(job, doneCallback) {
@@ -99,13 +52,16 @@ export class TransferManager extends events.EventEmitter {
         doneCallback();
     }
 
+    isPaused() {
+        return this._paused;
+    }
+
     pause() {
-        this.paused = true;
+        this._paused = true;
     }
 
     unpause() {
-        this.paused = false;
-        this.queue.on('readable', () => { this.start() });
+        this._paused = false;
     }
 
     private transferFile(transferJob: FileTransferJob) {

@@ -112,6 +112,8 @@ interface ITransferQueue {
     options?: any;
     write(job: FileTransferJob): boolean;
     read?(n?: number);
+    pause();
+    resume();
     isPaused(): boolean;
     on(eventName: string, callback: Function);
 }

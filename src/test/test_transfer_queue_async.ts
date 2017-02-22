@@ -101,7 +101,7 @@ describe("The transfer queue ", function () {
         done();
     });
 
-    it("should be able to write and read tasks many tasks from a queue", function (done) {
+    it("should be able to write many transfer jobs to the queue, receive 'finish' event when done", function (done) {
         const number_of_file_transfers = 10;
 
         setupSettings();
@@ -110,7 +110,7 @@ describe("The transfer queue ", function () {
         eventDebug(tq);
 
         tq.on('finish', () => {
-            console.log(`Queue ${tq.queue_id} -> 'end' event`);
+            console.log(`Queue ${tq.queue_id} -> 'finish' event`);
             done()
         });
 
@@ -123,8 +123,8 @@ describe("The transfer queue ", function () {
                 file_transfer_id: randomString(),
             } as FileTransferJob;
             jobs.push(job);
-            let ok = tq.write(job);
-            expect(ok).to.be.true;
+            let unsaturated = tq.write(job);
+            expect(unsaturated).to.be.true;
         }
     });
 
@@ -158,7 +158,6 @@ describe("The transfer queue ", function () {
         eventDebug(manager);
         eventDebug(tq);
 
-        // TODO: Never fires ?
         manager.on('transfer_complete', (transfer_id, bytes) => {
             console.info(`Transfer ${transfer_id} of ${bytes} bytes completed`);
             done();
