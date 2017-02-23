@@ -6,7 +6,12 @@ import * as child_process from 'child_process';
 import * as AsyncQueue from 'async/queue';
 import * as _ from "lodash";
 
+import {ApolloQueryResult} from "apollo-client";
+
+import {settings} from './settings';
+import {EDMConnection} from "../edmKit/connection";
 import {TransferManager} from "./transfer_manager";
+import {EDMQueries} from "./queries";
 
 /**
  * This task queue implementation implements parts of a stream.Duplex interface (ITransferQueue)
@@ -21,6 +26,7 @@ export class TransferQueue extends events.EventEmitter implements ITransferQueue
     readonly options: any;
     readonly highWaterMark;
     readonly concurrency = 1;
+    private _saturated: boolean = false;
 
     constructor(readonly queue_id: string, manager?: TransferManager, options?: any) {
         super();
@@ -29,7 +35,7 @@ export class TransferQueue extends events.EventEmitter implements ITransferQueue
         if (manager != null) this.init(manager);
     }
 
-    public init(manager: TransferManager) {
+    init(manager: TransferManager) {
         this._queue = new AsyncQueue((task, taskDone) => {
             manager.doTask(task, taskDone);
         }, this.concurrency);
@@ -39,15 +45,21 @@ export class TransferQueue extends events.EventEmitter implements ITransferQueue
         // node Writable streams. async.queue has it's own drain callback, but that fires when
         // the queue is empty.
         this._queue.unsaturated = () => {
+            this._saturated = false;
             this.emit('drain');
-            console.log(`${this.queue_id}: Queue ready to receive more jobs`);
+            console.log(`${this.queue_id}: Queue ready to receive more jobs.`);
+        };
+
+        this._queue.saturated = () => {
+            this._saturated = true;
+            console.log(`${this.queue_id}: Queue is saturated.`);
         };
 
         // when then queue is empty and all workers have finished, we emit 'finish' similar to
         // when a node Writable stream has flushed all data
         this._queue.drain = () => {
             this.emit('finish');
-            console.log(`${this.queue_id}: All jobs processed`);
+            console.log(`${this.queue_id}: All jobs processed.`);
         };
     }
 
@@ -67,19 +79,29 @@ export class TransferQueue extends events.EventEmitter implements ITransferQueue
         this._queue.push(job);
         // Emulates stream back-pressure.
         // eg, returns false to signal the caller should back off until 'drain' event is sent
-        // TODO: async.queue has saturated / unsaturated callbacks and a buffer threshold that is
-        //       similar to highWaterMark - maybe we should use these instead:
-        //       https://caolan.github.io/async/queue.js.html#line50
-        return (this._queue.length() < this.highWaterMark);
+        return this.isSaturated();
     }
 
     isPaused(): boolean {
-        return false;
+        return this._queue.paused;
+    }
+
+    isSaturated() {
+        return this._saturated;
     }
 }
 
 export class TransferQueuePoolManager {
     private managers = {};
+    private client: EDMConnection;
+
+    constructor() {
+        if (this.client == null) {
+            this.client = new EDMConnection(
+                settings.conf.serverSettings.host,
+                settings.conf.serverSettings.token);
+        }
+    }
 
     getQueue(queue_id: string) {// : TransferStream {
         if (this.managers[queue_id] == null) {
@@ -105,9 +127,27 @@ export class TransferQueuePoolManager {
         } as FileTransferJob;
     }
 
-    queueTransfer(transfer_job: FileTransferJob): boolean {
+    // We return a Promise here, so cache.ts can deal with updating the local cached status
+    // based on Promise .then or .catch.
+    // TODO: How to propagate the queue saturation boolean signal also in this case ?
+    queueTransfer(transfer_job: FileTransferJob): Promise<ApolloQueryResult> {
+        let queue_unsaturated: boolean = true;
         let q = TransferQueuePool.getQueue(transfer_job.destination_id);
-        return q.write(transfer_job);
+
+        if (q.isSaturated()) {
+            return Promise.reject(new Error(`Queue ${q.queue_id} saturated, not queueing job.`));
+        }
+
+        return EDMQueries.updateFileTransfer(this.client, <EDMCachedFileTransfer>{status: 'queued'})
+            .then((result) => {
+                queue_unsaturated = q.write(transfer_job);
+                return result;
+            });
+            // .catch(() => {
+            //     throw new Error("Failed to update server with file transfer status = queued. Job not queued.");
+            // });
+
+        //return queue_unsaturated;
     }
 }
 

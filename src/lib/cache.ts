@@ -74,34 +74,32 @@ export class EDMFileCache {
 
     queuePendingTransfers(cachedFile: EDMCachedFile) {
         for (let xfer of cachedFile.transfers) {
-            if (xfer.status === 'pending_upload') {
+            if (xfer.status === 'new') {
+                // TODO: How do we ensure jobs that fail to queue (backpressure or real failure) get requeued later ?
                 // TODO: How do we prevent a transfer being queued twice ?
-                //       One way - as soon as transfer is queued, update the
-                //       server with an 'queued' status (and the local PouchDB
-                //       EDMCachedFile record upon response).
-                //
-                //       Items currently queued and uploading transfers should
-                //       be in a PouchDB so we can:
-                //         - ensure we don't queue transfers twice
-                //         - correct server state after a hard crash ('uploading'
-                //           transfers in PouchDB need to resumed, or set back to
-                //          'pending_upload' on server and deleted from local
-                //          transfer cache)
+
+                //let queue_unsaturated: boolean = true;
                 let xfer_job = TransferQueuePool.createTransferJob(this.source, cachedFile, xfer);
-                let queued_ok = TransferQueuePool.queueTransfer(xfer_job);
+                TransferQueuePool.queueTransfer(xfer_job)
+                    .then((result) => {
+                        // update PouchDB with file transfer status = queued
+                        console.log(`file_transfer updated: ${JSON.stringify(result)}`);
+                    })
+                    .catch(() => {
+                        // we may catch a rejected Promise here if the job cannot be queued at this time
+                        // eg, queue is rejecting jobs due to back-pressure or a network failure notifying the server
 
-                // TESTING: Calling TransferManager.start() here works, since the timing
-                //          of async calls means the queue hasn't get received end event ?
-                // TransferQueuePool.getQueue(xfer_job.destination_id).resume();
-                // TransferQueuePool.getManager(xfer_job.destination_id).start();
+                        // TODO: How do we now catch 'new' transfers that didn't get queued here,
+                        //       given that they won't be detected now unless the 'change' event fires again
+                        //       for that EDMCachedFile record.
+                    });
 
-                if (!queued_ok) {
-                    // TODO: If the the stream is saturated (highWaterMark exceeded), we need to wait
-                    //       until it emits the 'drain' event before attempting to queue more.
-                    //       The stream will still internally buffer until it exceeds available memory,
-                    //       even when saturated, but we should avoid doing this and respect back pressure.
-                    throw Error(`[Not implemented]: TransferQueue ${xfer.destination_id} is saturated. File transfer ${xfer.id} must be queued later`);
-                }
+                // if (!queue_unsaturated) {
+                //     // TODO: If the the queue is saturated (highWaterMark exceeded), we need to wait
+                //     //       until it emits the 'drain' event before attempting to queue more to respect
+                //     //       back pressure.
+                //     throw Error(`[Not implemented]: TransferQueue ${xfer.destination_id} is saturated. File transfer ${xfer.id} must be queued later`);
+                // }
             }
         }
     }
