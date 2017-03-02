@@ -73,7 +73,7 @@ export class EDMSettings {
         else {
             // use default config file
             this.readConfigFile(
-                path.join(initArgs.dataDir || ospath.data(EDMSettings.app_name),
+                path.join(initArgs.dataDir || path.join(ospath.data(), EDMSettings.app_name),
                           EDMSettings.default_config_file_name));
         }
 
@@ -81,7 +81,7 @@ export class EDMSettings {
 
         // then override some settings if specified
         this.conf.appSettings.dataDir = initArgs.dataDir ||
-            this.conf.appSettings.dataDir || ospath.data(EDMSettings.app_name);
+            this.conf.appSettings.dataDir || path.join(ospath.data(), EDMSettings.app_name);
         this.ensureDataDirExists();
 
         this.conf.serverSettings.host = initArgs.serverAddress ||
