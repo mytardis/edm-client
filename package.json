@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@types/npm": "^2.0.28",
-    "apollo-client": "^0.5.8",
+    "apollo-client": "^0.8.7",
     "async": "^2.0.1",
     "graphql": "^0.7.2",
     "graphql-tag": "^0.1.17",
@@ -34,7 +34,7 @@
     "@types/cron": "^1.0.30",
     "@types/fs-extra": "0.0.32",
     "@types/isomorphic-fetch": "0.0.31",
-    "@types/lodash": "^4.14.41",
+    "@types/lodash": "^4.14.52",
     "@types/mocha": "2.2.33",
     "@types/nock": "^8.2.0",
     "@types/node": "^6.0.40",
@@ -58,6 +58,6 @@
     "ts-node": "^1.7.2",
     "tslint": "^3.13.0",
     "typed-graphql": "^1.0.1",
-    "typescript": "^2.1.4"
+    "typescript": "2.1.4"
   }
 }
