@@ -145,7 +145,7 @@ describe("Configuration options", function () {
     it("should allow setting the token with --token",
         function(done) {
             ensure_cwd();
-            child_process.exec("node app.js -t abc123 config", function(
+            child_process.exec("node app.js --token abc123 config", function(
                 error: Error, stdout: Buffer, stderr: Buffer) {
                     assert.equal(
                         JSON.parse(stdout.toString("utf8")).serverSettings.token,

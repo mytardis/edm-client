@@ -7,6 +7,7 @@ import * as nock from "nock";
 import {settings} from "../lib/settings";
 import {EDMFileWatcher} from "../lib/file_watcher";
 import EDMFile from "../lib/file_tracking";
+import {EDMQueries} from "../lib/queries";
 
 describe("file watcher", function () {
     const dataDir = tmp.dirSync({ prefix: 'edmtest_'}).name;
@@ -50,37 +51,68 @@ describe("file watcher", function () {
 
         fs.mkdirSync(dirToIngest);
         tmpFile = createNewTmpfile();
+
         replyData = {
             "data": {
                 "createOrUpdateFile": {
-                    "clientMutationId": mutation_id,
                     "file": {
                         "filepath": tmpFile,
-                        "file_transfers": [
-                            { "transfer_status" : "complete",
-                              "destination": {"host_id": "massive"}
-                            },
-                            {
-                              "transfer_status" : "pending_upload",
-                              "destination": {"host_id": "mytardis"}
-                            },
-                        ]
+                        "file_transfers": {
+                            "edges": [
+                                {
+                                    "node": {
+                                        "status": "new" as TransferStatus,
+                                        "id": "RmlsZVRyYW5zZmVyOmE4MGQ2OTkzLWM0YWEtNDUwNC1iNDYwLWMzNWFjYzgzZjgwOA==",
+                                        "destination": {
+                                            "host": {
+                                                "id": "massive"
+                                            }
+                                        },
+                                        "bytes_transferred": null
+                                    }
+                                },
+                                {
+                                    "node": {
+                                        "status": "queued" as TransferStatus,
+                                        "id": "RmlsZVRyYW5zZmVyOmE4MGQ2OTkzLWM0YWEtNDUwNC1iNDYwLWMzNWFjYzgzZjgwOA==",
+                                        "destination": {
+                                            "host": {
+                                                "id": "mytardis"
+                                            }
+                                        },
+                                        "bytes_transferred": null
+                                    }
+                                }
+                            ]
+                        }
                     },
+                    "clientMutationId": mutation_id
                 }
             }
-        };
+        }
+    });
+
+    afterEach("cleanup after each test", () => {
+        nock.cleanAll();
     });
 
     it("should register and cache new files", (done) => {
         prepareForGqlRequest();
         tmpFile = createNewTmpfile();
-        let watcher = new EDMFileWatcher({'basepath': dirToIngest});
+        let source: EDMSource = {
+            basepath: dirToIngest,
+            name: 'test_source',
+            id: '__source_UUID__',
+            checkMethod: 'manual' as FilesystemMonitorMethod,
+        };
+        let watcher = new EDMFileWatcher(source);
+
         const edmFile: EDMFile = new EDMFile(dirToIngest, path.basename(tmpFile));
         watcher.registerAndCache(edmFile)
             .then((backendResponse) => {
                 return watcher.cache.getEntry(edmFile);
             }).then((doc) => {
-                const expected = replyData.data.createOrUpdateFile.file.file_transfers;
+                const expected = EDMQueries.unpackFileTransferResponse(replyData.data.createOrUpdateFile.file.file_transfers);
                 expect(doc.transfers[0].status).to.equal(expected[0].status);
                 expect(doc.transfers[1].status).to.equal(expected[1].status);
                 console.log(doc);
