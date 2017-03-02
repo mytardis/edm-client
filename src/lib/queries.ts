@@ -6,15 +6,26 @@ import {MutationOptions} from "apollo-client";
 import {ApolloQueryResult} from "apollo-client";
 import {ObservableQuery} from "apollo-client";
 
+import {settings} from "./settings";
 import {EDMConnection} from "../edmKit/connection";
 import EDMFile from "./file_tracking";
 
 export class EDMQueries {
 
-    public static configQuery(connection: EDMConnection,
-                              variables = {}): ObservableQuery {
+    private static _global_client: EDMConnection;
 
-        // TODO: Use this version once destinations { hostId } works
+    private static get global_client(): EDMConnection {
+        if (EDMQueries._global_client == null) {
+            EDMQueries._global_client = new EDMConnection(
+                settings.conf.serverSettings.host,
+                settings.conf.serverSettings.token);
+        }
+        return EDMQueries._global_client;
+    }
+
+    public static configQuery(variables = {}, connection?: EDMConnection): ObservableQuery<any> {
+        if (connection == null) connection = EDMQueries.global_client;
+
         const query = gql`query MeQuery {
                               currentClient {
                                 id
@@ -37,26 +48,6 @@ export class EDMQueries {
                               }
                             }`;
 
-        // const query = gql`query MeQuery {
-        //                       currentClient {
-        //                         id
-        //                         attributes
-        //                           sources {
-        //                           id
-        //                           name
-        //                           settings
-        //                           destinations {
-        //                             id
-        //                             base
-        //                           }
-        //                         }
-        //                         hosts {
-        //                           id
-        //                           settings
-        //                           name
-        //                         }
-        //                       }
-        //                     }`;
         return connection.watchQuery({
             query: query,
             variables: variables,
@@ -76,7 +67,7 @@ export class EDMQueries {
                     }`;
     }
 
-    public static createOrUpdateFile(
+    public static createOrUpdateFileMutation(
         file: EDMFile,
         source_name: string,
         mutation_id?: string) : MutationOptions {
@@ -98,6 +89,7 @@ export class EDMQueries {
                             status
                             bytes_transferred
                             destination {
+                              id
                               host { id }
                             }
                           }
@@ -110,7 +102,6 @@ export class EDMQueries {
             "input": {
                 "clientMutationId": mutation_id,
                 "source": {"name": source_name},
-                // "file": file.getGqlVariables(),
                 "file": EDMQueries.getEDMFileGqlVariables(file),
             }
         };
@@ -121,6 +112,28 @@ export class EDMQueries {
         } as MutationOptions;
     }
 
+    /**
+     * Pagination in our GQL response means we need to unpack the list of
+     * EDMCachedFileTransfer objects from an array edges = [node.node,
+     * node.node, ...];
+     * @param transfers_paginated
+     * @private
+     */
+    public static unpackFileTransferResponse(transfers_paginated: GQLEdgeList): EDMCachedFileTransfer[] {
+        if (transfers_paginated == null || transfers_paginated.edges == null) {
+            return [];
+        }
+
+        let transfers = [];
+        for (let node of transfers_paginated.edges) {
+            let xfer = node.node;
+            xfer.destination_id = xfer.destination.id;
+            delete xfer.destination;
+            transfers.push(xfer as EDMCachedFileTransfer);
+        }
+        return transfers as EDMCachedFileTransfer[];
+    }
+
     public static getEDMFileGqlVariables(file: EDMFile) {
         let variables = _.pick(file.stats, ['size', 'mtime', 'atime', 'ctime', 'birthtime', 'mode']);
         variables['filepath'] = file.filepath;
@@ -128,25 +141,26 @@ export class EDMQueries {
     }
 
     public static registerFileWithServer(
-                                  connection: EDMConnection,
                                   file: EDMFile,
                                   source_name: string,
-                                  mutation_id?: string): Promise<ApolloQueryResult> {
+                                  mutation_id?: string,
+                                  connection?: EDMConnection): Promise<ApolloQueryResult<any>> {
 
-        const mutation = EDMQueries.createOrUpdateFile(
+        if (connection == null) connection = EDMQueries.global_client;
+
+        const mutation = EDMQueries.createOrUpdateFileMutation(
             file,
             source_name,
             mutation_id);
 
         return connection.mutate(mutation);
-            // .then((value) => {
-            //         console.log(JSON.stringify(value));
-            //         return value;
-            // });
     }
 
-    public static updateFileTransfer(connection: EDMConnection,
-                                     transfer: EDMCachedFileTransfer): Promise<ApolloQueryResult> {
+    public static updateFileTransfer(transfer: EDMCachedFileTransfer,
+                                     connection?: EDMConnection): Promise<ApolloQueryResult<any>> {
+
+        if (connection == null) connection = EDMQueries.global_client;
+
         const query = gql`
         mutation updateFileTransfer($input: UpdateFileTransferInput!) {
          updateFileTransfer(input: $input) {
@@ -159,14 +173,16 @@ export class EDMQueries {
          }
         }
         `;
+        let xfer = _.omitBy({
+            bytes_transferred: transfer.bytes_transferred,
+            status: transfer.status
+        }, _.isNil);
+
         const mutation = {
             mutation: query,
             variables: {
                 id: transfer.id,
-                file_transfer: {
-                    bytes_transferred: transfer.bytes_transferred,
-                    status: transfer.status
-                }
+                file_transfer: xfer,
             }
         } as MutationOptions;
 

@@ -15,7 +15,7 @@ interface ServerSettings {
 }
 
 interface AppSettings {
-    maxAsyncTransfers: number;
+    maxAsyncTransfersPerDestination?: number;
     dataDir?: string;
     ignoreServerConfig?: boolean;
     concurrency?: number;
@@ -50,14 +50,14 @@ interface EDMCachedFile {
     transfers: EDMCachedFileTransfer[];
 }
 
-type TransferStatus = "new" | "pending_upload" | "queued" | "uploading" | "complete" | "error";
+type TransferStatus = "new" | "queued" | "uploading" | "complete" | "error";
 
 interface EDMCachedFileTransfer {
     id: string;
     // file_id?: string;
-    destination_id: string;
-    status: TransferStatus;
-    bytes_transferred: number;
+    destination_id?: string;
+    status?: TransferStatus;
+    bytes_transferred?: number;
 }
 
 type FilesystemMonitorMethod =
@@ -116,6 +116,10 @@ interface ITransferQueue {
     resume();
     isPaused(): boolean;
     on(eventName: string, callback: Function);
+}
+
+interface GQLEdgeList {
+    edges: any[];
 }
 
 declare module "scp2" {
