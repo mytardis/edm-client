@@ -1,49 +1,61 @@
 /**
  * Transfer queue, starts threads or processes to handle file transfers
  */
+
+import * as path from 'path';
 import * as events from 'events';
-import * as child_process from 'child_process';
 import * as AsyncQueue from 'async/queue';
 import * as _ from "lodash";
 
 import {ApolloQueryResult} from "apollo-client";
 
-import {settings} from './settings';
-import {EDMConnection} from "../edmKit/connection";
-import {TransferManager} from "./transfer_manager";
+import {settings} from "./settings";
+import {TransferMethod} from "./transfer_methods/transfer_method";
+import {TransferMethodPlugins} from "./transfer_methods/transfer_method_plugins";
 import {EDMQueries} from "./queries";
+import {EDMConnection} from "../edmKit/connection";
 
 /**
- * This task queue implementation implements parts of a stream.Duplex interface (ITransferQueue)
- * so that it can be used (almost) interchangeably with other implementations (eg an alternative 'TransferStream')
+ * This task _queue implementation implements parts of a stream.Duplex
+ * interface (ITransferQueue) so that it can be used (almost) interchangeably
+ * with other implementations (eg an alternative 'TransferStream')
  *
  * https://caolan.github.io/async/docs.html#queue
  * https://caolan.github.io/async/docs.html#QueueObject
  *
  */
-export class TransferQueue extends events.EventEmitter implements ITransferQueue {
+export class TransferQueueManager extends events.EventEmitter  { // implements ITransferQueue {
+
     public _queue: AsyncQueue;
-    readonly options: any;
-    readonly highWaterMark;
-    readonly concurrency = 1;
+    private client: EDMConnection;
+    private method: TransferMethod;
+    private _paused: boolean = false;
     private _saturated: boolean = false;
 
-    constructor(readonly queue_id: string, manager?: TransferManager, options?: any) {
-        super();
-        this.options = options;
-        this.highWaterMark = _.get(options, 'highWaterMark', 10000);
-        if (manager != null) this.init(manager);
+    get concurrency(): number {
+        return this._queue.concurrency;
+    }
+    set concurrency(value: number) {
+        this._queue.concurrency = value;
     }
 
-    init(manager: TransferManager) {
+    constructor(readonly queue_id: string, options?: any) {
+        super();
+        if (this.client == null) {
+            this.client = new EDMConnection(
+                settings.conf.serverSettings.host,
+                settings.conf.serverSettings.token);
+        }
+
         this._queue = new AsyncQueue((task, taskDone) => {
-            manager.doTask(task, taskDone);
-        }, this.concurrency);
-        this._queue.buffer = this.highWaterMark;
+            this.doTask(task, taskDone);
+        });
+        this.concurrency = _.get(settings.conf.appSettings, 'maxAsyncTransfersPerDestination', 1);
+        this._queue.buffer = _.get(options, 'highWaterMark', 10000);
 
         // The unsaturated callback is probably most equivalent to the 'drain' event emitted by
-        // node Writable streams. async.queue has it's own drain callback, but that fires when
-        // the queue is empty.
+        // node Writable streams. async._queue has it's own drain callback, but that fires when
+        // the _queue is empty.
         this._queue.unsaturated = () => {
             this._saturated = false;
             this.emit('drain');
@@ -55,64 +67,129 @@ export class TransferQueue extends events.EventEmitter implements ITransferQueue
             console.log(`${this.queue_id}: Queue is saturated.`);
         };
 
-        // when then queue is empty and all workers have finished, we emit 'finish' similar to
+        // when then _queue is empty and all workers have finished, we emit 'finish' similar to
         // when a node Writable stream has flushed all data
         this._queue.drain = () => {
             this.emit('finish');
-            console.log(`${this.queue_id}: All jobs processed.`);
+            console.log(`${this.queue_id}: Queue became empty.`);
         };
     }
 
-    pause() {
-        return this._queue.pause();
+    private initTransferMethod(destinationHost: EDMDestinationHost, destination: EDMDestination) {
+        if (this.method != null) return;
+        let method_name = destinationHost.transfer_method;
+        let options = destinationHost.settings;
+        options.destBasePath = destination.location;
+        this.method = new (TransferMethodPlugins.getMethod(method_name))(options);
+
+        // These must be lambdas to preserve context of 'this'.
+        // Could be avoided if we use a single EDMConnection singleton in onUpdateProgress
+        // We use once events so we don't need to even call removeListener (since we
+        // can't remove a specific anonymous method) - onUpdateProgress re-registers itself
+        // as a one time event every time it's called.
+        this.method.on('start', (id, bytes) => this.onUpdateProgress(id, bytes));
+        this.method.on('progress', (id, bytes) => this.onUpdateProgress(id, bytes));
+        this.method.on('complete', (id, bytes) => this.onTransferComplete(id, bytes));
     }
 
-    resume() {
-        return this._queue.resume();
-    }
-
-    write(job): boolean {
-        if (this._queue == null) {
-            throw new Error("Must call init(manager: TransferManager) before writing to TransferQueue");
-        }
-
+    queueTask(job: FileTransferJob) {
         this._queue.push(job);
-        // Emulates stream back-pressure.
-        // eg, returns false to signal the caller should back off until 'drain' event is sent
-        return this.isSaturated();
+        return this.isPaused() || this.isSaturated();
     }
 
-    isPaused(): boolean {
-        return this._queue.paused;
+    // write(job: FileTransferJob) {
+    //     return this.queueTask(job);
+    // }
+
+    doTask(job, consumedCallback) {
+        // TODO: we should consider making this method call blocking, so
+        // queue 'finish' and 'empty' events behave as described in the async.queue docs
+        this.transferFile(job);
+        consumedCallback();
     }
 
     isSaturated() {
         return this._saturated;
     }
+
+    isPaused() {
+        return this._paused;
+    }
+
+    pause() {
+        this._paused = true;
+        return this._queue.pause();
+    }
+
+    resume() {
+        this._paused = false;
+        return this._queue.resume();
+    }
+
+    private transferFile(transferJob: FileTransferJob) {
+
+        let destinationHost = this.getDestinationHost(transferJob);
+        let destination = settings.getDestination(transferJob.destination_id);
+        this.initTransferMethod(destinationHost, destination);
+
+        let filepath = this.getFilePath(transferJob);
+
+        this.method.transfer(filepath, transferJob.file_transfer_id);
+    }
+
+    // TODO: This method probably belongs on a FileTransferJob class ?
+    private getDestinationHost(transferJob: FileTransferJob): EDMDestinationHost {
+        let host_id = settings.getDestination(transferJob.destination_id).host_id;
+        let destinationHost = settings.getHost(host_id);
+        return destinationHost;
+    }
+
+    // TODO: This method probably belongs on a FileTransferJob class ?
+    private getFilePath(transferJob: FileTransferJob): string {
+        let source = settings.getSource(transferJob.source_id);
+        let filepath = path.join(source.basepath, transferJob.cached_file_id);
+        return filepath;
+    }
+
+    private onUpdateProgress(file_transfer_id: string, bytes_transferred: number) {
+        console.info(`Transfer {FileTransferJob: ${file_transfer_id}, ` +
+                     `queue_id: ${this._queue.queue_id}, ` +
+                     `bytes_transferred: ${bytes_transferred}}`);
+
+        let cachedTransfer = {
+            id: file_transfer_id,
+            bytes_transferred: bytes_transferred,
+            status: "uploading"} as EDMCachedFileTransfer;
+        EDMQueries.updateFileTransfer(cachedTransfer)
+            .then((result) => {
+                console.log(`${JSON.stringify(result)}`);
+            })
+            .catch((error) => {
+                console.log(`${error}`);
+            });
+    }
+
+    private onTransferComplete(file_transfer_id: string, bytes_transferred: number) {
+        // TODO: Deal with network failure here, since we don't want the server never finding out about completed
+        //       transfers (in the case where the server is unable to verify itself).
+        //       (Retries at Apollo client level ?
+        //        Persist in PouchDB and periodically retry until server responds, then remove record ? )
+        this.onUpdateProgress(file_transfer_id, bytes_transferred);
+        this.emit('transfer_complete', file_transfer_id, bytes_transferred);
+    }
 }
 
-export class TransferQueuePoolManager {
+export class QueuePool {
     private managers = {};
-    private client: EDMConnection;
 
     constructor() {
-        if (this.client == null) {
-            this.client = new EDMConnection(
-                settings.conf.serverSettings.host,
-                settings.conf.serverSettings.token);
-        }
+
     }
 
-    getQueue(queue_id: string) {// : TransferStream {
+    getQueue(queue_id: string): TransferQueueManager {
         if (this.managers[queue_id] == null) {
-            this.managers[queue_id] = new TransferManager(queue_id);
+            this.managers[queue_id] = new TransferQueueManager(queue_id);
         }
-        return this.managers[queue_id].queue;
-    }
-
-    getManager(queue_id: string): TransferManager {
-        // ensure queue (and associated manager) is created
-        this.getQueue(queue_id);
         return this.managers[queue_id];
     }
 
@@ -128,19 +205,23 @@ export class TransferQueuePoolManager {
     }
 
     // We return a Promise here, so cache.ts can deal with updating the local cached status
-    // based on Promise .then or .catch.
-    // TODO: How to propagate the queue saturation boolean signal also in this case ?
-    queueTransfer(transfer_job: FileTransferJob): Promise<ApolloQueryResult> {
+    // after the server responds
+    // TODO: How to propagate the _queue saturation boolean signal also in this case ?
+    queueTransfer(transfer_job: FileTransferJob): Promise<ApolloQueryResult<any>> {
         let queue_unsaturated: boolean = true;
-        let q = TransferQueuePool.getQueue(transfer_job.destination_id);
+        let q = this.getQueue(transfer_job.destination_id);
 
         if (q.isSaturated()) {
             return Promise.reject(new Error(`Queue ${q.queue_id} saturated, not queueing job.`));
         }
 
-        return EDMQueries.updateFileTransfer(this.client, <EDMCachedFileTransfer>{status: 'queued'})
+        return EDMQueries.updateFileTransfer({
+                id: transfer_job.file_transfer_id,
+                bytes_transferred: 0,
+                status: 'queued'
+            } as EDMCachedFileTransfer)
             .then((result) => {
-                queue_unsaturated = q.write(transfer_job);
+                queue_unsaturated = q.queueTask(transfer_job);
                 return result;
             });
             // .catch(() => {
@@ -151,4 +232,4 @@ export class TransferQueuePoolManager {
     }
 }
 
-export const TransferQueuePool = new TransferQueuePoolManager();
+export const TransferQueuePool = new QueuePool();

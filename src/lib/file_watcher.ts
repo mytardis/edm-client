@@ -73,7 +73,14 @@ export class EDMFileWatcher {
 
             // compare on-disk to local db
             if (this.fileHasChanged(edmFile, cached)) {
-                this.registerAndCache(edmFile, cached);
+                this.registerAndCache(edmFile, cached)
+                    // .then((backendResponse) => {
+                    //     console.log(`${JSON.stringify(backendResponse)}`);
+                    //     this.cache.queuePendingTransfers(cached);
+                    // })
+                    .catch((error) => {
+                        console.error(`Failed to register and cache: ${JSON.stringify(edmFile)} - ${error}`);
+                    })
             }
             console.log(`${cached._id} is in cache (transfers: ${JSON.stringify(cached.transfers)})`);
         }).catch((error) => {
@@ -102,28 +109,27 @@ export class EDMFileWatcher {
     }
 
     // private needsUpload(cachedRecord: EDMCachedFile) {
-    //     return _.some(cachedRecord.transfers, {transfer_status: 'pending_upload'});
+    //     return _.some(cachedRecord.transfers, {transfer_status: 'new' as TransferStatus});
     // }
     //
     // private pendingTransfers(cachedRecord: EDMCachedFile) {
-    //     return _.filter(cachedRecord.transfers, {transfer_status: 'pending_upload'});
+    //     return _.filter(cachedRecord.transfers, {transfer_status: 'new' as TransferStatus});
     // }
 
-    public registerAndCache(localFile: EDMFile, cachedRecord?: EDMCachedFile): Promise<ApolloQueryResult> {
-        return EDMQueries.registerFileWithServer(this.client, localFile, this.source.name)
+    public registerAndCache(localFile: EDMFile, cachedRecord?: EDMCachedFile): Promise<ApolloQueryResult<any>> {
+        let s = this.source;
+        return EDMQueries.registerFileWithServer(localFile, this.source.name)
             .then((backendResponse) => {
-                const transfers = _.get(
-                    backendResponse.data.createOrUpdateFile.file, 'file_transfers', []);
                 let doc: EDMCachedFile = localFile.getPouchDocument();
                 if (cachedRecord != null) { // we are updating an existing record
                     doc._id = cachedRecord._id;
                     doc._rev = cachedRecord._rev;
                 }
-                doc.transfers = transfers;
+                const transfers: GQLEdgeList = _.get(backendResponse.data.createOrUpdateFile.file, 'file_transfers', null);
+                doc.transfers = EDMQueries.unpackFileTransferResponse(transfers);
                 this.cache.addFile(doc).catch((error) => {
                     console.error(`Cache put failed: ${error}`);
                 });
-                // console.log(backendResponse);
                 return backendResponse;
             })
             .catch((error) => {

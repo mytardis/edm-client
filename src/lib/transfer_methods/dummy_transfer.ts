@@ -28,14 +28,13 @@ export class DummyTransfer extends TransferMethod {
      *  - Batch up multiple file transfers here before actually starting upload.
      *    Eg, for a child_process.spawn of rsync or scp, it could be advantageous to
      *    list multiple files on the commandline and spawn a single process to upload them.
-     *    This will only work if the TransferManager uses a persistent instance of the TransferMethod,
+     *    This will only work if the TransferQueueManager uses a persistent instance of the TransferMethod,
      *    rather than creating a new TransferMethod instance for every file.
      *  - Automatically retry / resume transfers upon failures, before eventually giving up and
      *    emitting a 'fail' event.
      *
      * @param filepath
      * @param file_transfer_id
-     * @param progressCallback
      */
 
     transfer(filepath: string, file_transfer_id: string) {

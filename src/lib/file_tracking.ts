@@ -30,6 +30,7 @@ import * as _ from "lodash";
 export default class EDMFile {
     // TODO: these properties should be made readonly, or the hash should
     //       automatically update if any of these properties are changed
+    //       (eg, make hash readonly and everything else a property with a get/set)
     _id: string;
     basepath: string;
     filepath: string;

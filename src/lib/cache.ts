@@ -14,6 +14,7 @@ import EDMFile from './file_tracking';
 import {settings} from "./settings";
 import {EDMConnection} from "../edmKit/connection";
 import {TransferQueuePool} from "./transfer_queue";
+import {EDMQueries} from "./queries";
 
 export class EDMFileCache {
     client: EDMConnection;
@@ -64,7 +65,7 @@ export class EDMFileCache {
         if (file instanceof EDMFile) {
             return this._db.put(file.getPouchDocument());
         } else {
-            return this._db.put(file);
+            return this._db.put(file as EDMCachedFile);
         }
     }
 
@@ -75,8 +76,10 @@ export class EDMFileCache {
     queuePendingTransfers(cachedFile: EDMCachedFile) {
         for (let xfer of cachedFile.transfers) {
             if (xfer.status === 'new') {
-                // TODO: How do we ensure jobs that fail to queue (backpressure or real failure) get requeued later ?
+                // TODO: How do we ensure jobs that fail to _queue (backpressure or real failure) get requeued later ?
                 // TODO: How do we prevent a transfer being queued twice ?
+                // TODO: How do we update the local cache with the new file transfers status (just createOrUpdate on
+                // the file again to retrieve new transfer statuses ?) ?
 
                 //let queue_unsaturated: boolean = true;
                 let xfer_job = TransferQueuePool.createTransferJob(this.source, cachedFile, xfer);
@@ -85,20 +88,21 @@ export class EDMFileCache {
                         // update PouchDB with file transfer status = queued
                         console.log(`file_transfer updated: ${JSON.stringify(result)}`);
                     })
-                    .catch(() => {
+                    .catch((error) => {
                         // we may catch a rejected Promise here if the job cannot be queued at this time
-                        // eg, queue is rejecting jobs due to back-pressure or a network failure notifying the server
+                        // eg, _queue is rejecting jobs due to back-pressure or a network failure notifying the server
 
                         // TODO: How do we now catch 'new' transfers that didn't get queued here,
                         //       given that they won't be detected now unless the 'change' event fires again
                         //       for that EDMCachedFile record.
+                        throw Error(`ERROR: ${error}`);
                     });
 
                 // if (!queue_unsaturated) {
-                //     // TODO: If the the queue is saturated (highWaterMark exceeded), we need to wait
-                //     //       until it emits the 'drain' event before attempting to queue more to respect
+                //     // TODO: If the the _queue is saturated (highWaterMark exceeded), we need to wait
+                //     //       until it emits the 'drain' event before attempting to _queue more to respect
                 //     //       back pressure.
-                //     throw Error(`[Not implemented]: TransferQueue ${xfer.destination_id} is saturated. File transfer ${xfer.id} must be queued later`);
+                //     throw Error(`[Not implemented]: TransferQueues ${xfer.destination_id} is saturated. File transfer ${xfer.id} must be queued later`);
                 // }
             }
         }
