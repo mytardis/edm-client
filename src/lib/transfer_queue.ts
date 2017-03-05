@@ -14,7 +14,6 @@ import {settings} from "./settings";
 import {TransferMethod} from "./transfer_methods/transfer_method";
 import {TransferMethodPlugins} from "./transfer_methods/transfer_method_plugins";
 import {EDMQueries} from "./queries";
-import {EDMConnection} from "../edmKit/connection";
 
 /**
  * This task _queue implementation implements parts of a stream.Duplex

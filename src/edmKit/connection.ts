@@ -13,7 +13,7 @@ import {settings} from "../lib/settings";
 
 export class EDMConnection extends ApolloClient {
 
-    private static _global_client: EDMConnection;
+    public static _global_client: EDMConnection = null;
     public static get global_client(): EDMConnection {
         if (EDMConnection._global_client == null) {
             EDMConnection._global_client = new EDMConnection(
@@ -22,7 +22,6 @@ export class EDMConnection extends ApolloClient {
         }
         return EDMConnection._global_client;
     }
-
 
     constructor(host: string, token: string) {
         const graphqlEndpoint = `http://${host}/api/v1/graphql`;

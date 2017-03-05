@@ -5,8 +5,6 @@ const fs = require('fs-extra');
 import {ApolloQueryResult} from "apollo-client";
 
 import * as through2 from 'through2';
-import {settings} from "./settings";
-import {EDMConnection} from "../edmKit/connection";
 import EDMFile from "./file_tracking";
 import {EDMFileCache} from "./cache";
 import {EDMQueries} from "./queries";

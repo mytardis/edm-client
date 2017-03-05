@@ -6,14 +6,27 @@ import {MutationOptions} from "apollo-client";
 import {ApolloQueryResult} from "apollo-client";
 import {ObservableQuery} from "apollo-client";
 
-import {settings} from "./settings";
+import {settings} from "../lib/settings";
 import {EDMConnection} from "../edmKit/connection";
 import EDMFile from "./file_tracking";
+
+/*
+ Used in place of EDMConnection.global_client. For reasons I don't understand,
+ EDMConnection.global_client is undefined in some tests.
+ */
+function global_client(): EDMConnection {
+    if (EDMConnection._global_client == null) {
+        EDMConnection._global_client = new EDMConnection(
+            settings.conf.serverSettings.host,
+            settings.conf.serverSettings.token);
+    }
+    return EDMConnection._global_client;
+}
 
 export class EDMQueries {
 
     public static configQuery(variables = {}, connection?: EDMConnection): ObservableQuery<any> {
-        if (connection == null) connection = EDMConnection.global_client;
+        if (connection == null) connection = global_client();
 
         const query = gql`query MeQuery {
                               currentClient {
@@ -135,7 +148,7 @@ export class EDMQueries {
                                   mutation_id?: string,
                                   connection?: EDMConnection): Promise<ApolloQueryResult<any>> {
 
-        if (connection == null) connection = EDMConnection.global_client;
+        if (connection == null) connection = global_client();
 
         const mutation = EDMQueries.createOrUpdateFileMutation(
             file,
@@ -148,7 +161,7 @@ export class EDMQueries {
     public static updateFileTransfer(transfer: EDMCachedFileTransfer,
                                      connection?: EDMConnection): Promise<ApolloQueryResult<any>> {
 
-        if (connection == null) connection = EDMConnection.global_client;
+        if (connection == null) connection = global_client();
 
         const query = gql`
         mutation updateFileTransfer($input: UpdateFileTransferInput!) {
