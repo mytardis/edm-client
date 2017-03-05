@@ -7,17 +7,14 @@
 import * as fs from "fs";
 import * as path from "path";
 
-var PouchDB = require('pouchdb-node');
+const PouchDB = require('pouchdb-node');
 const querystring = require('querystring');
 
 import EDMFile from './file_tracking';
 import {settings} from "./settings";
-import {EDMConnection} from "../edmKit/connection";
 import {TransferQueuePool} from "./transfer_queue";
-import {EDMQueries} from "./queries";
 
 export class EDMFileCache {
-    client: EDMConnection;
     readonly db_name: string;
     readonly source: EDMSource;
     readonly _db: any; // PouchDB.Database<EDMCachedFile>;
@@ -39,9 +36,6 @@ export class EDMFileCache {
 
         const db_path = path.join(db_base, this.db_name);
         this._db = new PouchDB(db_path);
-        this.client = new EDMConnection(
-            settings.conf.serverSettings.host,
-            settings.conf.serverSettings.token);
         this.changes = this._db.changes({live: true, include_docs: true})
             .on('change', (change) => {
 

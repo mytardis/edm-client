@@ -13,7 +13,6 @@ import {EDMQueries} from "./queries";
 
 
 export class EDMFileWatcher {
-    client: EDMConnection;
     source: EDMSource;
     cache: EDMFileCache;
     filters: any = [];
@@ -29,9 +28,6 @@ export class EDMFileWatcher {
             };
             this.filters.push(exclude_filter);
         }
-        this.client = new EDMConnection(
-            settings.conf.serverSettings.host,
-            settings.conf.serverSettings.token);
     }
 
     walk(job?: any) {

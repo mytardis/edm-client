@@ -35,7 +35,7 @@ export class EDM {
     }
 
     startConfigPolling() {
-        const backendQuery = EDMQueries.configQuery(this.client);
+        const backendQuery = EDMQueries.configQuery({}, this.client);
         backendQuery.subscribe({
             next: (value) => {
                 let clientInfo = value.data.currentClient;

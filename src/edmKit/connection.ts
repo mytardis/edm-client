@@ -7,8 +7,22 @@
 /// <reference path="../types.d.ts" />
 import {createNetworkInterface, default as ApolloClient} from "apollo-client";
 import {NetworkInterfaceOptions} from "apollo-client/transport/networkInterface";
+import {settings} from "../lib/settings";
+
+// require('request').debug = true;
 
 export class EDMConnection extends ApolloClient {
+
+    private static _global_client: EDMConnection;
+    public static get global_client(): EDMConnection {
+        if (EDMConnection._global_client == null) {
+            EDMConnection._global_client = new EDMConnection(
+                settings.conf.serverSettings.host,
+                settings.conf.serverSettings.token);
+        }
+        return EDMConnection._global_client;
+    }
+
 
     constructor(host: string, token: string) {
         const graphqlEndpoint = `http://${host}/api/v1/graphql`;

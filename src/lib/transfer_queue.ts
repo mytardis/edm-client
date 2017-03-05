@@ -6,6 +6,7 @@ import * as path from 'path';
 import * as events from 'events';
 import * as AsyncQueue from 'async/queue';
 import * as _ from "lodash";
+const PouchDB = require('pouchdb-node');
 
 import {ApolloQueryResult} from "apollo-client";
 
@@ -27,7 +28,6 @@ import {EDMConnection} from "../edmKit/connection";
 export class TransferQueueManager extends events.EventEmitter  { // implements ITransferQueue {
 
     public _queue: AsyncQueue;
-    private client: EDMConnection;
     private method: TransferMethod;
     private _paused: boolean = false;
     private _saturated: boolean = false;
@@ -41,11 +41,6 @@ export class TransferQueueManager extends events.EventEmitter  { // implements I
 
     constructor(readonly queue_id: string, options?: any) {
         super();
-        if (this.client == null) {
-            this.client = new EDMConnection(
-                settings.conf.serverSettings.host,
-                settings.conf.serverSettings.token);
-        }
 
         this._queue = new AsyncQueue((task, taskDone) => {
             this.doTask(task, taskDone);
@@ -174,7 +169,21 @@ export class TransferQueueManager extends events.EventEmitter  { // implements I
         //       transfers (in the case where the server is unable to verify itself).
         //       (Retries at Apollo client level ?
         //        Persist in PouchDB and periodically retry until server responds, then remove record ? )
-        this.onUpdateProgress(file_transfer_id, bytes_transferred);
+        console.info(`Transfer complete {FileTransferJob: ${file_transfer_id}, ` +
+                     `queue_id: ${this._queue.queue_id}, ` +
+                     `bytes_transferred: ${bytes_transferred}}`);
+
+        let cachedTransfer = {
+            id: file_transfer_id,
+            bytes_transferred: bytes_transferred,
+            status: "complete"} as EDMCachedFileTransfer;
+        EDMQueries.updateFileTransfer(cachedTransfer)
+            .then((result) => {
+                console.log(`${JSON.stringify(result)}`);
+            })
+            .catch((error) => {
+                console.log(`${error}`);
+            });
         this.emit('transfer_complete', file_transfer_id, bytes_transferred);
     }
 }

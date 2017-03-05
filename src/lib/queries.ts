@@ -12,19 +12,8 @@ import EDMFile from "./file_tracking";
 
 export class EDMQueries {
 
-    private static _global_client: EDMConnection;
-
-    private static get global_client(): EDMConnection {
-        if (EDMQueries._global_client == null) {
-            EDMQueries._global_client = new EDMConnection(
-                settings.conf.serverSettings.host,
-                settings.conf.serverSettings.token);
-        }
-        return EDMQueries._global_client;
-    }
-
     public static configQuery(variables = {}, connection?: EDMConnection): ObservableQuery<any> {
-        if (connection == null) connection = EDMQueries.global_client;
+        if (connection == null) connection = EDMConnection.global_client;
 
         const query = gql`query MeQuery {
                               currentClient {
@@ -146,7 +135,7 @@ export class EDMQueries {
                                   mutation_id?: string,
                                   connection?: EDMConnection): Promise<ApolloQueryResult<any>> {
 
-        if (connection == null) connection = EDMQueries.global_client;
+        if (connection == null) connection = EDMConnection.global_client;
 
         const mutation = EDMQueries.createOrUpdateFileMutation(
             file,
@@ -159,7 +148,7 @@ export class EDMQueries {
     public static updateFileTransfer(transfer: EDMCachedFileTransfer,
                                      connection?: EDMConnection): Promise<ApolloQueryResult<any>> {
 
-        if (connection == null) connection = EDMQueries.global_client;
+        if (connection == null) connection = EDMConnection.global_client;
 
         const query = gql`
         mutation updateFileTransfer($input: UpdateFileTransferInput!) {
@@ -179,11 +168,14 @@ export class EDMQueries {
         }, _.isNil);
 
         const mutation = {
-            mutation: query,
-            variables: {
-                id: transfer.id,
-                file_transfer: xfer,
-            }
+                mutation: query,
+                variables: {
+                    input: {
+                        clientMutationId: uuidV4(),
+                        id: transfer.id,
+                        file_transfer: xfer,
+                    }
+                }
         } as MutationOptions;
 
         return connection.mutate(mutation);
