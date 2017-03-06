@@ -50,6 +50,8 @@ export class TransferQueueManager extends events.EventEmitter  { // implements I
         // The unsaturated callback is probably most equivalent to the 'drain' event emitted by
         // node Writable streams. async._queue has it's own drain callback, but that fires when
         // the _queue is empty.
+        // TODO: This never seems to fire, so we also modulate _saturated in the drain event
+        //       Seems to depend on 'concurrency' rather than 'buffer' high water mark value ?
         this._queue.unsaturated = () => {
             this._saturated = false;
             this.emit('drain');
@@ -64,6 +66,7 @@ export class TransferQueueManager extends events.EventEmitter  { // implements I
         // when then _queue is empty and all workers have finished, we emit 'finish' similar to
         // when a node Writable stream has flushed all data
         this._queue.drain = () => {
+            this._saturated = false;
             this.emit('finish');
             console.log(`${this.queue_id}: Queue became empty.`);
         };
