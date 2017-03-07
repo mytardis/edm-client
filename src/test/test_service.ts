@@ -108,11 +108,19 @@ describe("A mock EDM backend service", function () {
     });
 
 
-    it("should allow a file to be registered via GraphQL mutation", function (done) {
+    it("should allow a file to be registered via GraphQL mutation", (done) => {
 
-        let connection = new EDMConnection('localhost:4000', '_rand0m_JWT_t0ken');
+        let initArgs = {
+            dataDir: dataDir,
+            serverSettings: {
+                host: "localhost:4000",
+                token: '_rand0m_JWT_t0ken'
+            },
+        };
+        settings.parseInitArgs(initArgs);
+
         let file = new EDMFile(dataDir, path.basename(tmpFile.name));
-        let promise = EDMQueries.registerFileWithServer(file, 'test source', mutation_id, connection)
+        let promise = EDMQueries.registerFileWithServer(file, 'test source', mutation_id)
             .then((value) => {
                 expect(JSON.stringify(value)).to.equal(JSON.stringify(expectedReplyData));
                 done();
