@@ -8,7 +8,7 @@ import * as through2 from 'through2';
 import EDMFile from "./file_tracking";
 import {EDMFileCache} from "./cache";
 import {EDMQueries} from "./queries";
-
+import {LocalCache} from "./cache";
 
 export class EDMFileWatcher {
     source: EDMSource;
@@ -18,7 +18,7 @@ export class EDMFileWatcher {
 
     constructor(source: any, exclude?: any) {
         this.source = source;
-        this.cache = new EDMFileCache(this.source);
+        this.cache = LocalCache.cache;
         if (exclude != null) {
             const excluder = new RegExp(exclude);
             let exclude_filter = (path) => {
@@ -62,7 +62,7 @@ export class EDMFileWatcher {
 
         // console.log(file);
         const relpath = path.relative(this.source.basepath, file.path);
-        let edmFile = new EDMFile(this.source.basepath, relpath, file.stats);
+        let edmFile = new EDMFile(this.source, relpath);
         this.cache.getEntry(edmFile).then((cached) => {
 
             // compare on-disk to local db

@@ -7,8 +7,9 @@ const path = require('path');
 import * as tmp from 'tmp';
 
 import {settings} from "../lib/settings";
+import EDMFile from "../lib/file_tracking";
 import {TransferQueuePool} from "../lib/transfer_queue";
-import {EDMFileCache} from "../lib/cache";
+import {LocalCache} from "../lib/cache";
 
 var eventDebug = require('event-debug');
 
@@ -72,10 +73,10 @@ describe("The transfer _queue ", function () {
             checkMethod: "cron",
             cronTime: "* */30 * * * *",
             destinations: [destination],
-        };
+        } as EDMSource;
 
         transfer_job = {
-            cached_file_id: randomString(),
+            file_local_id: randomString(),
             source_id: source.id,
             destination_id: destination.id,
             file_transfer_id: randomString(),
@@ -112,7 +113,7 @@ describe("The transfer _queue ", function () {
     });
 
     it("should be able to write many transfer jobs to the _queue, " +
-        "receive 'finish' event when done", function (done) {
+        "receive 'transfer_complete' event when done", function (done) {
         const number_of_file_transfers = 10;
 
         setupSettings();
@@ -122,7 +123,7 @@ describe("The transfer _queue ", function () {
                 updateFileTransfer: {
                     clientMutationId: mutation_id,
                     file_transfer: {
-                        id: '__file_transfer_id__',
+                        id: 'some_file_transfer_id__',
                         // status:"new" as TransferStatus,
                         // status: "queued" as TransferStatus,
                         status: "uploading" as TransferStatus,
@@ -147,8 +148,8 @@ describe("The transfer _queue ", function () {
             console.log(`Queue ${tq.queue_id} -> 'finish' event`);
         });
 
-        tq.on('transfer_complete', (id, bytes) => {
-            console.log(`Transfer ${id} on queue ${tq.queue_id} completed (${bytes} bytes)`);
+        tq.on('transfer_complete', (id, bytes, file_local_id) => {
+            console.log(`Transfer ${id} of file ${file_local_id} on queue ${tq.queue_id} completed (${bytes} bytes)`);
             completed_transfers++;
             if (completed_transfers == number_of_file_transfers) {
                 // expect(mockBackend.isDone()).to.be.true;
@@ -159,7 +160,7 @@ describe("The transfer _queue ", function () {
         let jobs: FileTransferJob[] = [];
         for (let n=0; n < number_of_file_transfers; n++) {
             let job = {
-                cached_file_id: randomString(),
+                file_local_id: randomString(),
                 source_id: source.id,
                 destination_id: destination.id,
                 file_transfer_id: randomString(),
@@ -185,11 +186,15 @@ describe("The transfer _queue ", function () {
         let real_file = createNewTmpfile(source.basepath);
         real_file = path.basename(real_file);
 
+        const _id = EDMFile.generateID(source.basepath, real_file);
+        const size = 1024;
+        const hash = EDMFile.computeHash(_id, size, now);
         let cachedFile = {
-            _id: real_file,
+            _id: _id,
             mtime: now,
-            size: 1024,
-            hash: `${real_file}_1024_${now}`,
+            size: size,
+            hash: hash,
+            source_id: source.id,
             transfers: [transferRecord],
         } as EDMCachedFile;
 
@@ -213,12 +218,12 @@ describe("The transfer _queue ", function () {
 
         eventDebug(tq);
 
-        tq.on('transfer_complete', (transfer_id, bytes) => {
-            console.info(`Transfer ${transfer_id} of ${bytes} bytes completed`);
+        tq.on('transfer_complete', (transfer_id, bytes, file_local_id) => {
+            console.info(`Transfer ${transfer_id} (file_local_id: ${file_local_id}) of ${bytes} bytes completed`);
             done();
         });
 
-        let cache = new EDMFileCache(source);
+        const cache = LocalCache.cache;
 
         cache.addFile(cachedFile)
             .then((putResult) => {

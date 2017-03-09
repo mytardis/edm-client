@@ -1,5 +1,6 @@
 import {expect} from "chai";
 const fs = require('fs-extra');
+import EDMFile from "../lib/file_tracking";
 import {DummyTransfer} from "../lib/transfer_methods/dummy_transfer";
 
 describe("A transfer method ", function () {
@@ -22,6 +23,10 @@ describe("A transfer method ", function () {
             done();
         });
 
-        dummy.transfer("/some/fake/absolute/filepath", file_transfer_id);
+        dummy.transfer(
+            "/some/fake/absolute/filepath",
+            file_transfer_id,
+            EDMFile.generateID("/some/fake/absolute", "filepath")
+        );
     });
 });

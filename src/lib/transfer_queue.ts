@@ -7,10 +7,12 @@ import * as events from 'events';
 import * as AsyncQueue from 'async/queue';
 import * as _ from "lodash";
 const PouchDB = require('pouchdb-node');
+PouchDB.plugin(require('pouchdb-upsert'));
 
 import {ApolloQueryResult} from "apollo-client";
 
 import {settings} from "./settings";
+import {LocalCache} from "./cache";
 import {TransferMethod} from "./transfer_methods/transfer_method";
 import {TransferMethodPlugins} from "./transfer_methods/transfer_method_plugins";
 import {EDMQueries} from "./queries";
@@ -24,7 +26,7 @@ import {EDMQueries} from "./queries";
  * https://caolan.github.io/async/docs.html#QueueObject
  *
  */
-export class TransferQueueManager extends events.EventEmitter  { // implements ITransferQueue {
+export class TransferQueueManager extends events.EventEmitter  {
 
     public _queue: AsyncQueue;
     private method: TransferMethod;
@@ -84,9 +86,9 @@ export class TransferQueueManager extends events.EventEmitter  { // implements I
         // We use once events so we don't need to even call removeListener (since we
         // can't remove a specific anonymous method) - onUpdateProgress re-registers itself
         // as a one time event every time it's called.
-        this.method.on('start', (id, bytes) => this.onUpdateProgress(id, bytes));
-        this.method.on('progress', (id, bytes) => this.onUpdateProgress(id, bytes));
-        this.method.on('complete', (id, bytes) => this.onTransferComplete(id, bytes));
+        this.method.on('start', (id, bytes, file_local_id) => this.onUpdateProgress(id, bytes, file_local_id));
+        this.method.on('progress', (id, bytes, file_local_id) => this.onUpdateProgress(id, bytes, file_local_id));
+        this.method.on('complete', (id, bytes, file_local_id) => this.onTransferComplete(id, bytes, file_local_id));
     }
 
     queueTask(job: FileTransferJob) {
@@ -131,7 +133,7 @@ export class TransferQueueManager extends events.EventEmitter  { // implements I
 
         let filepath = this.getFilePath(transferJob);
 
-        this.method.transfer(filepath, transferJob.file_transfer_id);
+        this.method.transfer(filepath, transferJob.file_transfer_id, transferJob.file_local_id);
     }
 
     // TODO: This method probably belongs on a FileTransferJob class ?
@@ -144,11 +146,11 @@ export class TransferQueueManager extends events.EventEmitter  { // implements I
     // TODO: This method probably belongs on a FileTransferJob class ?
     private getFilePath(transferJob: FileTransferJob): string {
         let source = settings.getSource(transferJob.source_id);
-        let filepath = path.join(source.basepath, transferJob.cached_file_id);
+        let filepath = path.join(source.basepath, transferJob.file_local_id);
         return filepath;
     }
 
-    private onUpdateProgress(file_transfer_id: string, bytes_transferred: number) {
+    private onUpdateProgress(file_transfer_id: string, bytes_transferred: number, file_local_id: string) {
         console.info(`Transfer {FileTransferJob: ${file_transfer_id}, ` +
                      `queue_id: ${this._queue.queue_id}, ` +
                      `bytes_transferred: ${bytes_transferred}}`);
@@ -157,16 +159,30 @@ export class TransferQueueManager extends events.EventEmitter  { // implements I
             id: file_transfer_id,
             bytes_transferred: bytes_transferred,
             status: "uploading"} as EDMCachedFileTransfer;
-        EDMQueries.updateFileTransfer(cachedTransfer)
-            .then((result) => {
-                console.log(`${JSON.stringify(result)}`);
-            })
-            .catch((error) => {
-                console.log(`${error}`);
-            });
+
+        LocalCache.cache._db.upsert(file_local_id, (doc) => {
+            if (doc == null || doc.transfers == null) return doc;
+
+            for (let xfer of doc.transfers) {
+                if (xfer.id == file_transfer_id) {
+                    xfer.status = cachedTransfer.status;
+                    xfer.bytes_transferred = cachedTransfer.bytes_transferred;
+                }
+            }
+            return doc;
+        })
+        .then((upsertResult) => {
+            return EDMQueries.updateFileTransfer(cachedTransfer);
+        })
+        .then((backendResponse) => {
+            console.log(`${JSON.stringify(backendResponse)}`);
+        })
+        .catch((error) => {
+            console.log(`${error}`);
+        });
     }
 
-    private onTransferComplete(file_transfer_id: string, bytes_transferred: number) {
+    private onTransferComplete(file_transfer_id: string, bytes_transferred: number, file_local_id: string) {
         // TODO: Deal with network failure here, since we don't want the server never finding out about completed
         //       transfers (in the case where the server is unable to verify itself).
         //       (Retries at Apollo client level ?
@@ -179,14 +195,29 @@ export class TransferQueueManager extends events.EventEmitter  { // implements I
             id: file_transfer_id,
             bytes_transferred: bytes_transferred,
             status: "complete"} as EDMCachedFileTransfer;
-        EDMQueries.updateFileTransfer(cachedTransfer)
-            .then((result) => {
-                console.log(`${JSON.stringify(result)}`);
-            })
-            .catch((error) => {
-                console.log(`${error}`);
-            });
-        this.emit('transfer_complete', file_transfer_id, bytes_transferred);
+
+        LocalCache.cache._db.upsert(file_local_id, (doc) => {
+            if (doc == null || doc.transfers == null) return doc;
+
+            for (let xfer of doc.transfers) {
+                if (xfer.id == file_transfer_id) {
+                    xfer.status = cachedTransfer.status;
+                    xfer.bytes_transferred = cachedTransfer.bytes_transferred;
+                }
+            }
+            return doc;
+        })
+        .then((upsertResult) => {
+            this.emit('transfer_complete', file_transfer_id, bytes_transferred, file_local_id);
+
+            return EDMQueries.updateFileTransfer(cachedTransfer);
+        })
+        .then((backendResponse) => {
+            console.log(`${JSON.stringify(backendResponse)}`);
+        })
+        .catch((error) => {
+            console.log(`${error}`);
+        });
     }
 }
 
@@ -204,12 +235,11 @@ export class QueuePool {
         return this.managers[queue_id];
     }
 
-    createTransferJob(source: EDMSource,
-                      cachedFile: EDMCachedFile,
+    createTransferJob(cachedFile: EDMCachedFile,
                       transfer: EDMCachedFileTransfer): FileTransferJob {
         return {
-            cached_file_id: cachedFile._id,
-            source_id: source.id,
+            file_local_id: cachedFile._id,
+            source_id: cachedFile.source_id,
             destination_id: transfer.destination_id,
             file_transfer_id: transfer.id,
         } as FileTransferJob;

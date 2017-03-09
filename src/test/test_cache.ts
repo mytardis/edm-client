@@ -32,7 +32,12 @@ describe("file watch cache", function () {
 
     it("should store EDMCachedFile documents", (done) => {
         let datafilepath = createNewTmpfile();
-        let file = new EDMFile(dirToIngest, path.basename(datafilepath));
+        const source = {
+            id: "test_source",
+            basepath: dirToIngest,
+        } as EDMSource;
+
+        let file = new EDMFile(source, path.basename(datafilepath));
         let doc = file.getPouchDocument();
         let cache = new EDMFileCache(dirToIngest);
         cache.addFile(doc)
@@ -51,7 +56,12 @@ describe("file watch cache", function () {
 
     it("should store EDMFile documents", (done) => {
         let datafilepath = createNewTmpfile();
-        let file = new EDMFile(dirToIngest, path.basename(datafilepath));
+        const source = {
+            id: "test_source",
+            basepath: dirToIngest,
+        } as EDMSource;
+
+        let file = new EDMFile(source, path.basename(datafilepath));
         let cache = new EDMFileCache(dirToIngest);
         cache.addFile(file)
             .then((success) => {

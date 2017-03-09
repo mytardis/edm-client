@@ -5,7 +5,7 @@ import * as path from "path";
 import * as tmp from 'tmp';
 
 import EDMFile from "../lib/file_tracking";
-import {EDMFileCache} from "../lib/cache";
+import {LocalCache} from "../lib/cache";
 import {settings} from "../lib/settings";
 import file = tmp.file;
 
@@ -32,14 +32,19 @@ describe("file tracker", function () {
         console.log(settings.conf.appSettings.dataDir);
 
         const sourceBasePath = getTmpDir();
+        const source = {
+            id: "test_source",
+            basepath: sourceBasePath,
+        } as EDMSource;
+
         const filePath = createNewTmpfile(sourceBasePath);
-        let file = new EDMFile(sourceBasePath, filePath);
+        let file = new EDMFile(source, path.basename(filePath));
         expect(file.hash).to.not.be.null;
         expect(file.hash).to.not.be.undefined;
         expect(file.stats).to.not.be.null;
         expect(file.stats).to.not.be.undefined;
         //expect(file._id).to.contain('file://');
-        expect(file._id).to.equal(filePath);
+        expect(file._id).to.equal(EDMFile.generateID(sourceBasePath, path.basename(filePath)));
         expect(file._id).to.contain(sourceBasePath);
         expect(file._id).to.contain(filePath);
     });
@@ -47,15 +52,15 @@ describe("file tracker", function () {
     it("should be able to test whether the file exists in the cache", (done) => {
 
         const sourceBasePath = getTmpDir();
-        const filePath = createNewTmpfile(sourceBasePath);
-        let file = new EDMFile(sourceBasePath, filePath);
-
-        let source = {
+        const source = {
             id: "test_source",
             basepath: sourceBasePath,
         } as EDMSource;
 
-        let cache = new EDMFileCache(source);
+        const filePath = createNewTmpfile(sourceBasePath);
+        let file = new EDMFile(source, filePath);
+
+        const cache = LocalCache.cache;
         cache.getEntry(file)
         .then((result) => {
             console.log(result);
@@ -70,15 +75,15 @@ describe("file tracker", function () {
 
     it("should be able to store its details in the cache and retrieve them", (done) => {
         const sourceBasePath = getTmpDir();
-        const filePath = createNewTmpfile(sourceBasePath);
-        let file = new EDMFile(sourceBasePath, filePath);
-
-        let source = {
+        const source = {
             id: "test_source",
             basepath: sourceBasePath,
         } as EDMSource;
 
-        let cache = new EDMFileCache(source);
+        const filePath = createNewTmpfile(sourceBasePath);
+        let file = new EDMFile(source, filePath);
+
+        const cache = LocalCache.cache;
 
         cache.addFile(file)
             .then((putResult) => {

@@ -15,18 +15,11 @@ import {settings} from "./settings";
 import {TransferQueuePool} from "./transfer_queue";
 
 export class EDMFileCache {
-    readonly db_name: string;
-    readonly source: EDMSource;
     readonly _db: any; // PouchDB.Database<EDMCachedFile>;
     private changes: any;
 
-    //public static caches = {};
-
-    constructor(source: EDMSource) {
-        //EDMFileCache.caches[source.id] = this;
-
-        this.source = source;
-        this.db_name = querystring.escape(source.basepath);
+    constructor(readonly db_name: string = 'files') {
+        this.db_name = querystring.escape(db_name);
         //this.db_name = querystring.escape(source.id);
         const db_base = path.normalize(path.join(
             settings.conf.appSettings.dataDir, 'data'));
@@ -70,13 +63,10 @@ export class EDMFileCache {
     queuePendingTransfers(cachedFile: EDMCachedFile) {
         for (let xfer of cachedFile.transfers) {
             if (xfer.status === 'new') {
-                // TODO: How do we ensure jobs that fail to _queue (backpressure or real failure) get requeued later ?
-                // TODO: How do we prevent a transfer being queued twice ?
-                // TODO: How do we update the local cache with the new file transfers status (just createOrUpdate on
-                // the file again to retrieve new transfer statuses ?) ?
+                // TODO: How do we ensure jobs that fail to _queue (backpressure or real failure) get re-queued later ?
 
                 //let queue_unsaturated: boolean = true;
-                let xfer_job = TransferQueuePool.createTransferJob(this.source, cachedFile, xfer);
+                let xfer_job = TransferQueuePool.createTransferJob(cachedFile, xfer);
                 TransferQueuePool.queueTransfer(xfer_job)
                     .then((result) => {
                         // update PouchDB with file transfer status = queued
@@ -93,12 +83,31 @@ export class EDMFileCache {
                     });
 
                 // if (!queue_unsaturated) {
-                //     // TODO: If the the _queue is saturated (highWaterMark exceeded), we need to wait
-                //     //       until it emits the 'drain' event before attempting to _queue more to respect
-                //     //       back pressure.
+                //     // TODO: If the the _queue is saturated (highWaterMark / buffer exceeded), we need to wait
+                //     //       until it emits the 'drain' or 'unsaturated' event before attempting to _queue more to
+                //     //       respect back pressure.
                 //     throw Error(`[Not implemented]: TransferQueues ${xfer.destination_id} is saturated. File transfer ${xfer.id} must be queued later`);
                 // }
             }
         }
     }
 }
+
+/*
+ * This Singleton + getter wrapper class is used since:
+ *   export const LocalCache = new EDMFileCache();
+ * will fail immediately upon startup since settings won't yet be initialized, but
+ * the EDMFileCache constructor uses settings.
+ *
+ * CacheProxy only instantiates the EDMFileCache instance on demand, and by then settings (should) be populated.
+ * There are probably other workarounds.
+ */
+export class CacheProxy {
+    private _cache: EDMFileCache;
+    public get cache(): EDMFileCache {
+        if (this._cache == null) this._cache = new EDMFileCache();
+        return this._cache;
+    }
+}
+
+export const LocalCache = new CacheProxy();

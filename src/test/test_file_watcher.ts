@@ -7,18 +7,24 @@ import * as nock from "nock";
 import {settings} from "../lib/settings";
 import {EDMFileWatcher} from "../lib/file_watcher";
 import EDMFile from "../lib/file_tracking";
+import {EDMFileCache} from "../lib/cache";
 import {EDMQueries} from "../lib/queries";
 
 describe("file watcher", function () {
-    const dataDir = tmp.dirSync({ prefix: 'edmtest_'}).name;
-    const dirToIngest = path.join(dataDir, 'tmp');
+    let dataDir: string;
+    let dirToIngest: string;
     let edmBackend: any;
     const mutation_id = 'a44f9922-ebae-4864-ae46-678efa394e7d';
     let tmpFile: string;
     let replyData: any;
 
-    function createNewTmpfile(): string {
-        let tmpobj = tmp.fileSync({ dir: dirToIngest, prefix: 'tmp-' });
+    function getTmpDirPath(prefix='edm_test') {
+        return tmp.dirSync({ prefix: prefix}).name;
+    }
+
+    function createNewTmpfile(tmpDir?: string): string {
+        if (tmpDir == null) tmpDir = getTmpDirPath();
+        let tmpobj = tmp.fileSync({ dir: tmpDir, prefix: 'tmp-' });
         fs.outputFileSync(tmpobj.name, 'some data\n', function (err) { console.log(err) });
         return tmpobj.name;
     }
@@ -40,6 +46,21 @@ describe("file watcher", function () {
     before("set up test env", () => {
         tmp.setGracefulCleanup();
 
+        // const initArgs = {
+        //     dataDir: dataDir,
+        //     serverSettings: {
+        //         host:'localhost:4000',
+        //         token: '_rand0m_JWT_t0ken'}
+        // };
+        //
+        // settings.parseInitArgs(initArgs);
+    });
+
+    function prepareEnv() {
+        dataDir = getTmpDirPath('edm-settings-dir');
+        dirToIngest = getTmpDirPath('edm-files-to-ingest');
+        tmpFile = createNewTmpfile(dirToIngest);
+
         const initArgs = {
             dataDir: dataDir,
             serverSettings: {
@@ -48,9 +69,6 @@ describe("file watcher", function () {
         };
 
         settings.parseInitArgs(initArgs);
-
-        fs.mkdirSync(dirToIngest);
-        tmpFile = createNewTmpfile();
 
         replyData = {
             "data": {
@@ -90,15 +108,16 @@ describe("file watcher", function () {
                 }
             }
         }
-    });
+    };
 
     afterEach("cleanup after each test", () => {
         nock.cleanAll();
     });
 
     it("should register and cache new files", (done) => {
+        prepareEnv();
         prepareForGqlRequest();
-        tmpFile = createNewTmpfile();
+
         let source: EDMSource = {
             basepath: dirToIngest,
             name: 'test_source',
@@ -107,7 +126,7 @@ describe("file watcher", function () {
         };
         let watcher = new EDMFileWatcher(source);
 
-        const edmFile: EDMFile = new EDMFile(dirToIngest, path.basename(tmpFile));
+        const edmFile: EDMFile = new EDMFile(source, path.basename(tmpFile));
         watcher.registerAndCache(edmFile)
             .then((backendResponse) => {
                 return watcher.cache.getEntry(edmFile);
@@ -125,14 +144,16 @@ describe("file watcher", function () {
     });
 
     it("should list files in a folder", (done) => {
+        prepareEnv();
         prepareForGqlRequest(2);
-        tmpFile = createNewTmpfile();
 
         console.log(settings.conf.appSettings.dataDir);
-        let watcher = new EDMFileWatcher({'basepath': dirToIngest});
+        console.log(dirToIngest);
+        let watcher = new EDMFileWatcher({basepath: dirToIngest});
+        watcher.cache = new EDMFileCache('testing');
         watcher.endWalk = () => {
-            const numfiles = watcher.lastWalkItems.length;
-            expect(numfiles).to.be.greaterThan(1);
+            const numfiles = watcher.lastWalkItems.length - 2;
+            expect(numfiles).to.be.equal(1);
             watcher.cache._db.allDocs().then((result) => {
                 console.log(`allDocs: ${JSON.stringify(result)}`);
                 console.log(`numfiles: ${numfiles}`);
@@ -146,8 +167,4 @@ describe("file watcher", function () {
         };
         watcher.walk();
     });
-
-    after(function() {
-
-    })
 });

@@ -101,10 +101,10 @@ export class EDMQueries {
                   }
               }`;
         const vars = {
-            "input": {
-                "clientMutationId": mutation_id,
-                "source": {"name": source_name},
-                "file": EDMQueries.getEDMFileGqlVariables(file),
+            input: {
+                clientMutationId: mutation_id,
+                source: {name: source_name},
+                file: EDMQueries.getEDMFileGqlVariables(file),
             }
         };
 

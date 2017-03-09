@@ -41,8 +41,10 @@ type FileStatus =
     | "uploaded";
 
 interface EDMCachedFile {
-    _id: string;       // file path
-    _rev?: string;     // PouchDB revision
+    _id: string;         // absolute file path (usually)
+    _rev?: string;       // PouchDB revision
+    remote_id?: string;  // ID assigned by backend server
+    source_id: string;
     mtime: number;
     size: number;
     // status: FileStatus;
@@ -54,7 +56,7 @@ type TransferStatus = "new" | "queued" | "uploading" | "complete" | "error";
 
 interface EDMCachedFileTransfer {
     id: string;
-    // file_id?: string;
+    // file_local_id?: string; // _id in PouchDB 'files' database
     destination_id?: string;
     status?: TransferStatus;
     bytes_transferred?: number;
@@ -91,7 +93,7 @@ type TransferMethodName = "dummy" | "local" | "scp2";
 
 interface FileTransferJob {
     //_id: string;
-    cached_file_id: string;
+    file_local_id: string;
     source_id: string;
     destination_id: string;
     file_transfer_id: string;
