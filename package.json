@@ -25,7 +25,8 @@
     "pretest": "npm run build",
     "test": "mocha --compilers ts:ts-node/register,tsx:ts-node/register src/test",
     "prestart": "npm run build",
-    "start": "cd build && node app"
+    "start": "cd build && node app",
+    "pkg": "cd build && nexe -i app.js -o edm-client -f "
   },
   "devDependencies": {
     "@types/chai": "3.4.33",
@@ -46,6 +47,7 @@
     "fs-extra": "^0.30.0",
     "graphql-typings": "0.0.1-beta-2",
     "mocha": "2.2.5",
+    "nexe": "^1.1.2",
     "nock": "^8.2.0",
     "ospath": "^1.2.2",
     "pouchdb-node": "^6.0.7",
