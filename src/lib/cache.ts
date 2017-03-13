@@ -6,6 +6,7 @@
  */
 import * as fs from "fs";
 import * as path from "path";
+import * as url from 'url';
 
 const PouchDB = require('pouchdb-node');
 const querystring = require('querystring');
@@ -58,6 +59,21 @@ export class EDMFileCache {
 
     getEntry(file: EDMFile | EDMCachedFile) {
         return this._db.get(file._id);
+    }
+
+    /**
+     * Given the ID of a file in the local cache, returns the full path of the file.
+     *
+     * @param file_local_id
+     * @returns {string}
+     */
+    public getFilePath(file_local_id: string): string {
+        // const filepath = file_local_id.replace(/^file:\/\//, '');
+        let file_uri = url.parse(file_local_id);
+        file_uri.protocol = '';
+        file_uri.slashes = false;
+        const filepath = url.format(file_uri);
+        return filepath;
     }
 
     queuePendingTransfers(cachedFile: EDMCachedFile) {

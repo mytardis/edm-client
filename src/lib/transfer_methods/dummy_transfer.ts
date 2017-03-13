@@ -37,15 +37,16 @@ export class DummyTransfer extends TransferMethod {
      * eventually giving up and emitting a 'fail' event.
      *
      * @param filepath
+     * @param source_basepath
      * @param file_transfer_id
      * @param file_local_id
      */
 
-    transfer(filepath: string, file_transfer_id: string, file_local_id: string) {
+    transfer(filepath: string, source_basepath: string, file_transfer_id: string, file_local_id: string) {
 
         this.emit('start', file_transfer_id, 0, file_local_id);
 
-        console.info(`Pretending to transfer: ${filepath} -> ${this.getDestinationPath(filepath)}`);
+        console.info(`Pretending to transfer: ${filepath} -> ${this.getDestinationPath(filepath, source_basepath)}`);
 
         // emit a bunch of progress events with increasing delays before they fire
         const byte_increment = Math.floor((this.percent_increment / 100) * this.total_bytes);
@@ -59,7 +60,7 @@ export class DummyTransfer extends TransferMethod {
                     this.emit('fail', file_transfer_id, bytes, file_local_id, error);
                 }
             });
-        };
+        }
 
         // after total time has elapsed, emit final progress and the complete event
         this.sleep(this.total_time).then(() => {
@@ -68,7 +69,7 @@ export class DummyTransfer extends TransferMethod {
         });
     }
 
-    private getDestinationPath(filepath: string) {
-        return path.join(this.options.destBasePath, filepath);
+    private getDestinationPath(filepath: string, source_basepath: string) {
+        return path.join(this.options.destBasePath, path.relative(source_basepath, filepath));
     }
 }

@@ -100,11 +100,12 @@ export class TransferQueueManager extends events.EventEmitter  {
     //     return this.queueTask(job);
     // }
 
-    doTask(job, consumedCallback) {
-        // TODO: we should consider making this method call blocking, so
-        // queue 'finish' and 'empty' events behave as described in the async.queue docs
+    doTask(job, jobDoneCallback) {
         this.transferFile(job);
-        consumedCallback();
+        this.method.once('complete',
+            (file_transfer_id, bytes_transferred, file_local_id) => {
+              jobDoneCallback(file_transfer_id, bytes_transferred, file_local_id)
+        });
     }
 
     isSaturated() {
@@ -127,13 +128,15 @@ export class TransferQueueManager extends events.EventEmitter  {
 
     private transferFile(transferJob: FileTransferJob) {
 
-        let destinationHost = this.getDestinationHost(transferJob);
-        let destination = settings.getDestination(transferJob.destination_id);
+        const destinationHost = this.getDestinationHost(transferJob);
+        const destination = settings.getDestination(transferJob.destination_id);
         this.initTransferMethod(destinationHost, destination);
 
-        let filepath = this.getFilePath(transferJob);
+        const filepath = LocalCache.cache.getFilePath(transferJob.file_local_id);
+        const source = settings.getSource(transferJob.source_id);
+        const source_basepath = source.basepath;
 
-        this.method.transfer(filepath, transferJob.file_transfer_id, transferJob.file_local_id);
+        this.method.transfer(filepath, source_basepath, transferJob.file_transfer_id, transferJob.file_local_id);
     }
 
     // TODO: This method probably belongs on a FileTransferJob class ?
@@ -141,13 +144,6 @@ export class TransferQueueManager extends events.EventEmitter  {
         let host_id = settings.getDestination(transferJob.destination_id).host_id;
         let destinationHost = settings.getHost(host_id);
         return destinationHost;
-    }
-
-    // TODO: This method probably belongs on a FileTransferJob class ?
-    private getFilePath(transferJob: FileTransferJob): string {
-        let source = settings.getSource(transferJob.source_id);
-        let filepath = path.join(source.basepath, transferJob.file_local_id);
-        return filepath;
     }
 
     private onUpdateProgress(file_transfer_id: string, bytes_transferred: number, file_local_id: string) {
