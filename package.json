@@ -25,6 +25,7 @@
     "build": "tsc",
     "pretest": "npm run build",
     "test": "mocha --compilers ts:ts-node/register,tsx:ts-node/register src/test",
+    "test_int": "mocha --compilers ts:ts-node/register,tsx:ts-node/register src/integrationTest",
     "prestart": "npm run build",
     "start": "cd build && node app"
   },
