@@ -136,7 +136,10 @@ export class TransferQueueManager extends events.EventEmitter  {
         const source = settings.getSource(transferJob.source_id);
         const source_basepath = source.basepath;
 
-        this.method.transfer(filepath, source_basepath, transferJob.file_transfer_id, transferJob.file_local_id);
+        this.method.transfer(filepath,
+                             source_basepath,
+                             transferJob.file_transfer_id,
+                             transferJob.file_local_id);
     }
 
     // TODO: This method probably belongs on a FileTransferJob class ?

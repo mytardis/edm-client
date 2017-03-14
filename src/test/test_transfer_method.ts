@@ -26,7 +26,8 @@ describe("A transfer method ", function () {
         dummy.transfer(
             "/some/fake/absolute/filepath",
             file_transfer_id,
-            EDMFile.generateID("/some/fake/absolute", "filepath")
+            EDMFile.generateID("/some/fake/absolute", "filepath"),
+            'bla'
         );
     });
 });
