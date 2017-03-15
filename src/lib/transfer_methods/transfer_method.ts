@@ -15,7 +15,7 @@ export abstract class TransferMethod extends events.EventEmitter {
     // executes the transfer
     abstract transfer(
         filepath: string,
-        source_basepath: string,
+        dest_filepath: string,
         transfer_id: string,
         file_local_id: string);
 }
