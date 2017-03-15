@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as _ from "lodash";
 const fs = require('fs-extra');
+var klaw = require('klaw')
 
 import {ApolloQueryResult} from "apollo-client";
 
@@ -30,7 +31,7 @@ export class EDMFileWatcher {
 
     walk(job?: any) {
         // using https://github.com/jprichardson/node-klaw
-        const walker = fs.walk(this.source.basepath);
+        const walker = klaw(this.source.basepath);
         const items = [];
         for (let filter of this.filters) {
             walker.pipe(through2.obj((item, enc, next) => {
