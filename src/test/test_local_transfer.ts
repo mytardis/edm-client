@@ -6,74 +6,85 @@ let chai = require('chai');
 chai.use(require('chai-fs'));
 let expect = chai.expect;
 
+import {randomString} from "../lib/testutils";
+import {createNewTmpfile} from "../lib/testutils";
+import {getTmpDirPath} from "../lib/testutils";
+
 import * as fs from 'fs-extra';
+import * as tmp from 'tmp';
+const path = require('path');
 
 import {LocalTransfer} from "../lib/transfer_methods/local_transfer";
 
 describe("Local transfer method ", function() {
 
-    after(function() {
-        fs.removeSync('./test-sourcedir');
-        fs.removeSync('./test-destination');
+    before(function() {
+        tmp.setGracefulCleanup();
     });
 
     it('should copy a local file', (done) => {
-        fs.mkdirsSync('./test-sourcedir');
-        fs.writeFileSync('./test-sourcedir/testfile1.txt', 'testcontent123');
+        let source_dir = getTmpDirPath();
+        let source_file = createNewTmpfile(source_dir, '16_bytes_content');
+        let destination_base_path = getTmpDirPath();
+        let destination_rel_path = path.basename(source_file);
         let options = <TransferMethodOptions>{
-            destBasePath: './test-destination',
+            destBasePath: destination_base_path,
         };
         let localTransfer = new LocalTransfer(options);
         localTransfer.transfer(
-            './test-sourcedir/testfile1.txt',
-            './test-sourcedir',
-            '123',
-            '1234'
+            source_file,
+            destination_rel_path,
+            'a_file_transfer_id',
+            'a_file_local_id_123'
         );
         localTransfer.on('complete', (id, _size, local_id) => {
-            expect('./test-destination/testfile1.txt').to.be.a.file().and.equal(
-                './test-sourcedir/testfile1.txt');
-            expect(id).to.equal('123');
-            expect(local_id).to.equal('1234');
-            fs.removeSync('./test-sourcedir/testfile1.txt');
-            fs.removeSync('./test-destination/testfile1.txt');
+            expect(path.join(destination_base_path, destination_rel_path)).to.be.a.file().and.equal(source_file);
+            expect(id).to.equal('a_file_transfer_id');
+            expect(local_id).to.equal('a_file_local_id_123');
+            expect(_size).to.equal(16);
             done();
         });
     });
-    it('should error if file exists', (done) => {
+
+    it('should error if file exists at destination', (done) => {
+        let source_dir = getTmpDirPath();
+        let source_file = createNewTmpfile(source_dir, '16_bytes_content');
+        let destination_base_path = getTmpDirPath();
+        let destination_rel_path = path.basename(source_file);
+        let destination_file_full_path = path.join(destination_base_path, destination_rel_path)
+
+        fs.mkdirsSync(destination_base_path);
+        fs.writeFileSync(destination_file_full_path, '16_bytes_content');
+
         after(function() {
-            fs.removeSync('./test-sourcedir/testfile2.txt');
-            fs.removeSync('./test-destination/testfile2.txt');
+            fs.removeSync(destination_file_full_path);
         });
 
-        fs.mkdirsSync('./test-sourcedir');
-        fs.writeFileSync('./test-sourcedir/testfile2.txt', 'testcontent123');
-        fs.mkdirsSync('./test-destination');
-        fs.writeFileSync('./test-destination/testfile2.txt', 'original123');
         let options = <TransferMethodOptions>{
-            destBasePath: './test-destination',
+            destBasePath: destination_base_path,
         };
         let localTransfer = new LocalTransfer(options);
         localTransfer.transfer(
-            './test-sourcedir/testfile2.txt',
-            './test-sourcedir',
-            '123',
-            '1234'
+            source_file,
+            destination_rel_path,
+            'a_file_transfer_id',
+            'a_file_local_id_123'
         );
+
         localTransfer.on('fail', (id, _null, local_id, error) => {
             expect(error.toString()).to.contain(
-                'test-destination/testfile2.txt already exists');
-            expect('./test-destination/testfile2.txt').to.be.a.file()
-                .with.content('original123');
-            expect(id).to.equal('123');
-            expect(local_id).to.equal('1234');
+                `${destination_file_full_path} already exists`);
+            expect(destination_file_full_path).to.be.a.file()
+                .with.content('16_bytes_content');
+            expect(id).to.equal('a_file_transfer_id');
+            expect(local_id).to.equal('a_file_local_id_123');
             done();
         });
         localTransfer.on('complete', (id, _size, local_id) => {
-            expect('./test-destination/testfile2.txt').to.be.a.file()
-                .with.content('original123');
-            expect(id).to.equal('123');
-            expect(local_id).to.equal('1234');
+            expect(destination_file_full_path).to.be.a.file()
+                .with.content('16_bytes_content');
+            expect(id).to.equal('a_file_transfer_id');
+            expect(local_id).to.equal('a_file_local_id_123');
             done();
         });
     });
