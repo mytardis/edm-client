@@ -250,6 +250,10 @@ export class QueuePool {
         } as FileTransferJob;
     }
 
+    isSaturated(queue_id: string): boolean {
+        return this.getQueue(queue_id).isSaturated();
+    }
+
     // We return a Promise here, so cache.ts can deal with updating the local cached status
     // after the server responds
     // TODO: How to propagate the _queue saturation boolean signal also in this case ?

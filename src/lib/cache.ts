@@ -86,26 +86,28 @@ export class EDMFileCache {
             if (xfer.status === 'new') {
                 //let queue_unsaturated: boolean = true;
                 let xfer_job = TransferQueuePool.createTransferJob(cachedFile, xfer);
+
+                if (TransferQueuePool.isSaturated(xfer.destination_id)) {
+                    // TODO: How do we ensure jobs that fail to _queue (backpressure or real failure) get re-queued later ?
+
+                    console.error(`[Not implemented]: TransferQueues ${xfer.destination_id} is saturated.`+
+                                  `FileTransfer ${xfer.id} was not queued.`);
+                    continue;
+                }
+
                 TransferQueuePool.queueTransfer(xfer_job)
                     .then((result) => {
                         // update PouchDB with file transfer status = queued
                         console.log(`file_transfer updated: ${JSON.stringify(result)}`);
 
                         if (result['queue_saturated']) {
-                            // TODO: If the the _queue is saturated (highWaterMark / buffer limit exceeded), we need to
-                            // wait until it emits the 'drain' or 'unsaturated' event before attempting to _queue
-                            // more to respect back pressure.
-
-                            // TODO: How do we ensure jobs that fail to _queue (backpressure or real failure) get re-queued later ?
-
-                            throw Error(`[Not implemented]: TransferQueues ${xfer.destination_id} is saturated.`+
-                                        `File transfer ${xfer.id} must be queued later`);
+                            console.error(`[Not implemented]: TransferQueues ${xfer.destination_id} is now saturated.`);
                         }
                     })
                     .catch((error) => {
                         // we may catch a rejected Promise here if the job cannot be queued at this time
                         // eg, a network failure notifying the server
-                        throw Error(`ERROR: ${error}`);
+                        console.error(`ERROR: ${error}`);
                     });
             }
         }
