@@ -10,6 +10,9 @@ const fs = require('fs-extra');
 const path = require('path');
 import * as tmp from 'tmp';
 
+import {createNewTmpfile} from "../lib/testutils";
+import {getTmpDirPath} from "../lib/testutils";
+
 import {settings} from "../lib/settings";
 import {EDMConnection} from "../edmKit/connection";
 import EDMFile from "../lib/file_tracking";
@@ -19,31 +22,22 @@ import {EDMQueries} from "../lib/queries";
 describe("A mock EDM backend service", function () {
     let mutation_id = 'a44f9922-ebae-4864-ae46-678efa394e7d';
     let dataDir: string;
-    let tmpFile: tmp.SynchrounousResult;
+    let tmpFile: string;
     let expectedReplyData: any;
-
-    function getTmpDirPath(prefix='edm_test') {
-        return tmp.dirSync({ prefix: prefix}).name;
-    }
-
-    function createNewTmpfile(basepath, prefix='tmp-'): tmp.SynchrounousResult {
-        let tmpobj = tmp.fileSync({ dir: basepath, prefix: 'tmp-' });
-        fs.outputFileSync(tmpobj.name, "some data\n", function (err) { console.log(err) });
-        return tmpobj;
-    }
 
     before(function () {
         tmp.setGracefulCleanup();
+    });
 
+    beforeEach(() => {
         dataDir = getTmpDirPath();
-        // set up mock responder
         tmpFile = createNewTmpfile(dataDir);
 
         expectedReplyData = {
             "data": {
                 "createOrUpdateFile": {
                     "file": {
-                        "filepath": tmpFile.name,
+                        "filepath": tmpFile,
                         "file_transfers": {
                             "edges": [
                                 {
@@ -103,11 +97,6 @@ describe("A mock EDM backend service", function () {
         nock.cleanAll();
     });
 
-    after(function() {
-        tmpFile.removeCallback();
-    });
-
-
     it("should allow a file to be registered via GraphQL mutation", (done) => {
 
         let initArgs = {
@@ -125,7 +114,7 @@ describe("A mock EDM backend service", function () {
             basepath: sourceBasePath,
         } as EDMSource;
 
-        let file = new EDMFile(source, path.basename(tmpFile.name));
+        let file = new EDMFile(source, path.basename(tmpFile));
         let promise = EDMQueries.registerFileWithServer(file, 'test source', mutation_id)
             .then((value) => {
                 expect(JSON.stringify(value)).to.equal(JSON.stringify(expectedReplyData));

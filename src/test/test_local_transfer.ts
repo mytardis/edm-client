@@ -6,7 +6,6 @@ let chai = require('chai');
 chai.use(require('chai-fs'));
 let expect = chai.expect;
 
-import {randomString} from "../lib/testutils";
 import {createNewTmpfile} from "../lib/testutils";
 import {getTmpDirPath} from "../lib/testutils";
 

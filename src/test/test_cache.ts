@@ -5,6 +5,9 @@ import * as tmp from 'tmp';
 const path = require('path');
 const fs = require('fs-extra');
 
+import {createNewTmpfile} from "../lib/testutils";
+import {getTmpDirPath} from "../lib/testutils";
+
 import {EDMFileCache} from "../lib/cache";
 import EDMFile from "../lib/file_tracking";
 
@@ -12,26 +15,27 @@ import {settings} from "../lib/settings";
 
 
 describe("file watch cache", function () {
-    const dataDir = tmp.dirSync({ prefix: 'edmtest_'}).name;
-    const dirToIngest = path.join(dataDir, 'tmp');
+    let dataDir: string;
+    let dirToIngest: string;
     const docKeys = ['_id', 'mtime', 'size', 'hash'];
-
-    function createNewTmpfile(): string {
-        let tmpobj = tmp.fileSync({ dir: dirToIngest, prefix: 'tmp-' });
-        fs.outputFileSync(tmpobj.name, 'some data\n', function (err) { console.log(err) });
-        return tmpobj.name;
-    }
 
     before("set up test env", function () {
         tmp.setGracefulCleanup();
-        fs.mkdirSync(dirToIngest);
+
+        const initArgs = {dataDir: dataDir};
+        settings.parseInitArgs(initArgs);
+    });
+
+    beforeEach("setup", () => {
+        dataDir = getTmpDirPath();
+        dirToIngest = getTmpDirPath();
 
         const initArgs = {dataDir: dataDir};
         settings.parseInitArgs(initArgs);
     });
 
     it("should store EDMCachedFile documents", (done) => {
-        let datafilepath = createNewTmpfile();
+        let datafilepath = createNewTmpfile(dirToIngest);
         const source = {
             id: "test_source",
             basepath: dirToIngest,
@@ -55,7 +59,7 @@ describe("file watch cache", function () {
     });
 
     it("should store EDMFile documents", (done) => {
-        let datafilepath = createNewTmpfile();
+        let datafilepath = createNewTmpfile(dirToIngest);
         const source = {
             id: "test_source",
             basepath: dirToIngest,
