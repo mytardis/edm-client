@@ -4,6 +4,9 @@ import * as tmp from 'tmp';
 import {expect} from "chai";
 import * as nock from "nock";
 
+import {createNewTmpfile} from "../lib/testutils";
+import {getTmpDirPath} from "../lib/testutils";
+
 import {settings} from "../lib/settings";
 import {EDMFileWatcher} from "../lib/file_watcher";
 import EDMFile from "../lib/file_tracking";
@@ -17,17 +20,6 @@ describe("file watcher", function () {
     const mutation_id = 'a44f9922-ebae-4864-ae46-678efa394e7d';
     let tmpFile: string;
     let replyData: any;
-
-    function getTmpDirPath(prefix='edm_test') {
-        return tmp.dirSync({ prefix: prefix}).name;
-    }
-
-    function createNewTmpfile(tmpDir?: string): string {
-        if (tmpDir == null) tmpDir = getTmpDirPath();
-        let tmpobj = tmp.fileSync({ dir: tmpDir, prefix: 'tmp-' });
-        fs.outputFileSync(tmpobj.name, 'some data\n', function (err) { console.log(err) });
-        return tmpobj.name;
-    }
 
     function prepareForGqlRequest(times: number = 1) {
         edmBackend = nock('http://localhost:4000').log(console.log)
@@ -45,15 +37,6 @@ describe("file watcher", function () {
 
     before("set up test env", () => {
         tmp.setGracefulCleanup();
-
-        // const initArgs = {
-        //     dataDir: dataDir,
-        //     serverSettings: {
-        //         host:'localhost:4000',
-        //         token: '_rand0m_JWT_t0ken'}
-        // };
-        //
-        // settings.parseInitArgs(initArgs);
     });
 
     function prepareEnv() {

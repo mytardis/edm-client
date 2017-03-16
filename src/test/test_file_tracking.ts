@@ -4,34 +4,25 @@ const fs = require('fs-extra');
 import * as path from "path";
 import * as tmp from 'tmp';
 
+import {createNewTmpfile} from "../lib/testutils";
+import {getTmpDirPath} from "../lib/testutils";
+
 import EDMFile from "../lib/file_tracking";
 import {LocalCache} from "../lib/cache";
 import {settings} from "../lib/settings";
 import file = tmp.file;
 
-
 describe("file tracker", function () {
 
-    function getTmpDir(): string {
-        return tmp.dirSync({ prefix: 'edmtest_'}).name;
-    }
-
-    function createNewTmpfile(basePath: string): string {
-        let tmpobj = tmp.fileSync({ dir: basePath, prefix: 'tmp-' });
-        const data = Math.random().toString(18).substring(2);
-        fs.outputFileSync(tmpobj.name, `${data}\n`, function (err) { console.log(err) });
-        return tmpobj.name;
-    }
-
     before("set up test env", function () {
-        const initArgs = {dataDir: './testdata'};
+        const initArgs = {dataDir: getTmpDirPath()};
         settings.parseInitArgs(initArgs);
     });
 
     it("should hash a file and its metadata", function () {
         console.log(settings.conf.appSettings.dataDir);
 
-        const sourceBasePath = getTmpDir();
+        const sourceBasePath = getTmpDirPath();
         const source = {
             id: "test_source",
             basepath: sourceBasePath,
@@ -51,7 +42,7 @@ describe("file tracker", function () {
 
     it("should be able to test whether the file exists in the cache", (done) => {
 
-        const sourceBasePath = getTmpDir();
+        const sourceBasePath = getTmpDirPath();
         const source = {
             id: "test_source",
             basepath: sourceBasePath,
@@ -74,7 +65,7 @@ describe("file tracker", function () {
     });
 
     it("should be able to store its details in the cache and retrieve them", (done) => {
-        const sourceBasePath = getTmpDir();
+        const sourceBasePath = getTmpDirPath();
         const source = {
             id: "test_source",
             basepath: sourceBasePath,
