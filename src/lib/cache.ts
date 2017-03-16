@@ -78,32 +78,35 @@ export class EDMFileCache {
 
     queuePendingTransfers(cachedFile: EDMCachedFile) {
         for (let xfer of cachedFile.transfers) {
+            // TODO: Stop any active transfers that have been cancelled
+            //       by the backend server (eg in response to the file stats changing, destination deletion, etc)
+            // if (xfer.status === 'cancelled' && TransferQueuePool.isTransferInProgress(xfer.id)) {
+            //     TransferQueuePool.cancel(xfer.id)
+            // }
             if (xfer.status === 'new') {
-                // TODO: How do we ensure jobs that fail to _queue (backpressure or real failure) get re-queued later ?
-
                 //let queue_unsaturated: boolean = true;
                 let xfer_job = TransferQueuePool.createTransferJob(cachedFile, xfer);
                 TransferQueuePool.queueTransfer(xfer_job)
                     .then((result) => {
                         // update PouchDB with file transfer status = queued
                         console.log(`file_transfer updated: ${JSON.stringify(result)}`);
+
+                        if (result['queue_saturated']) {
+                            // TODO: If the the _queue is saturated (highWaterMark / buffer limit exceeded), we need to
+                            // wait until it emits the 'drain' or 'unsaturated' event before attempting to _queue
+                            // more to respect back pressure.
+
+                            // TODO: How do we ensure jobs that fail to _queue (backpressure or real failure) get re-queued later ?
+
+                            throw Error(`[Not implemented]: TransferQueues ${xfer.destination_id} is saturated.`+
+                                        `File transfer ${xfer.id} must be queued later`);
+                        }
                     })
                     .catch((error) => {
                         // we may catch a rejected Promise here if the job cannot be queued at this time
-                        // eg, _queue is rejecting jobs due to back-pressure or a network failure notifying the server
-
-                        // TODO: How do we now catch 'new' transfers that didn't get queued here,
-                        //       given that they won't be detected now unless the 'change' event fires again
-                        //       for that EDMCachedFile record.
+                        // eg, a network failure notifying the server
                         throw Error(`ERROR: ${error}`);
                     });
-
-                // if (!queue_unsaturated) {
-                //     // TODO: If the the _queue is saturated (highWaterMark / buffer exceeded), we need to wait
-                //     //       until it emits the 'drain' or 'unsaturated' event before attempting to _queue more to
-                //     //       respect back pressure.
-                //     throw Error(`[Not implemented]: TransferQueues ${xfer.destination_id} is saturated. File transfer ${xfer.id} must be queued later`);
-                // }
             }
         }
     }

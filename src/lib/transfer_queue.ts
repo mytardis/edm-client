@@ -134,10 +134,12 @@ export class TransferQueueManager extends events.EventEmitter  {
 
         const filepath = LocalCache.cache.getFilePath(transferJob.file_local_id);
         const source = settings.getSource(transferJob.source_id);
-        const source_basepath = source.basepath;
+        // TODO: destination_path will come from server as part of file_transfer
+        //       in the future. For now, we mirror the relative path at the source
+        const destination_path = path.relative(source.basepath, filepath);
 
         this.method.transfer(filepath,
-                             source_basepath,
+                             destination_path,
                              transferJob.file_transfer_id,
                              transferJob.file_local_id);
     }
@@ -174,6 +176,10 @@ export class TransferQueueManager extends events.EventEmitter  {
             return EDMQueries.updateFileTransfer(cachedTransfer);
         })
         .then((backendResponse) => {
+
+            // TODO: Here (and in onTransferComplete), we need to check the status of
+            //       the file_transfer returned. If the status == 'cancelled', or the
+            //       file_transfer record doesn't exist (record deleted), cancel the transfer.
             console.log(`${JSON.stringify(backendResponse)}`);
         })
         .catch((error) => {
@@ -187,7 +193,7 @@ export class TransferQueueManager extends events.EventEmitter  {
         //       (Retries at Apollo client level ?
         //        Persist in PouchDB and periodically retry until server responds, then remove record ? )
         console.info(`Transfer complete {FileTransferJob: ${file_transfer_id}, ` +
-                     `queue_id: ${this._queue.queue_id}, ` +
+                     `queue_id: ${this.queue_id}, ` +
                      `bytes_transferred: ${bytes_transferred}}`);
 
         let cachedTransfer = {
@@ -261,14 +267,10 @@ export class QueuePool {
                 status: 'queued'
             } as EDMCachedFileTransfer)
             .then((result) => {
-                queue_unsaturated = q.queueTask(transfer_job);
+                // we add this property to the ApolloQueryResult Promise to communicate queue saturation state
+                result['queue_saturated'] = q.queueTask(transfer_job);
                 return result;
             });
-            // .catch(() => {
-            //     throw new Error("Failed to update server with file transfer status = queued. Job not queued.");
-            // });
-
-        //return queue_unsaturated;
     }
 }
 
