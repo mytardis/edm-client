@@ -31,7 +31,6 @@ export class TransferQueueManager extends events.EventEmitter  {
     public _queue: AsyncQueue;
     private method: TransferMethod;
     private _paused: boolean = false;
-    private _saturated: boolean = false;
 
     get concurrency(): number {
         return this._queue.concurrency;
@@ -47,30 +46,36 @@ export class TransferQueueManager extends events.EventEmitter  {
             this.doTask(task, taskDone);
         });
         this.concurrency = _.get(settings.conf.appSettings, 'maxAsyncTransfersPerDestination', 1);
-        this._queue.buffer = _.get(options, 'highWaterMark', 10000);
+        this._queue.buffer = _.get(options, 'highWaterMark', 100000);
 
-        // The unsaturated callback is probably most equivalent to the 'drain' event emitted by
-        // node Writable streams. async._queue has it's own drain callback, but that fires when
-        // the _queue is empty.
-        // TODO: This never seems to fire, so we also modulate _saturated in the drain event
-        //       Seems to depend on 'concurrency' rather than 'buffer' high water mark value ?
+        // Fires when a task completes and running workers <= (concurrency - buffer)
+        // It seems async.queue might assume that buffer is always smaller than concurrency - this will never fire if
+        // buffer is greater than concurrency.
+        // 'Unsaturated' in this context seems to mean something like:
+        //  "if we were to send a full buffer to the remaining idle workers, we would still have some idle workers
+        //   remaining".
         this._queue.unsaturated = () => {
-            this._saturated = false;
-            this.emit('drain');
-            console.log(`${this.queue_id}: Queue ready to receive more jobs.`);
+            this.emit('unsaturated', this);
+            // console.log(`${this.queue_id}: Queue: became unsaturated.`);
         };
 
+        // Fires when the number of running workers == concurrency.
+        // Tasks will be buffered rather than consumed by workers immediately.
         this._queue.saturated = () => {
-            this._saturated = true;
-            console.log(`${this.queue_id}: Queue is saturated.`);
+            this.emit('saturated', this);
+            console.log(`${this.queue_id}: Queue: workers busy. Additional tasks will be queued.`);
         };
 
-        // when then _queue is empty and all workers have finished, we emit 'finish' similar to
-        // when a node Writable stream has flushed all data
+        // Fires when the last buffered item has given to a worker
+        this._queue.empty = () => {
+            this.emit('empty', this);
+            console.log(`${this.queue_id}: Queue: became empty.`);
+        };
+
+        // Fires when the buffer is empty and all workers have finished
         this._queue.drain = () => {
-            this._saturated = false;
-            this.emit('finish');
-            console.log(`${this.queue_id}: Queue became empty.`);
+            this.emit('drain', this);
+            console.log(`${this.queue_id}: Queue: all workers became idle, no tasks queued.`);
         };
     }
 
@@ -93,23 +98,26 @@ export class TransferQueueManager extends events.EventEmitter  {
 
     queueTask(job: FileTransferJob) {
         this._queue.push(job);
-        return this.isPaused() || this.isSaturated();
+        return this.isPaused() || this.isFull();
     }
-
-    // write(job: FileTransferJob) {
-    //     return this.queueTask(job);
-    // }
 
     doTask(job, jobDoneCallback) {
         this.transferFile(job);
+        // TODO: This is wrong - 'complete' fires for ANY transfer completion. We need to match the
+        //       file_transfer_id with the correct jobDoneCallback. We can either:
+        //       a) keep a mapping list this._transferDoneCallbacks = {file_transfer_id: jobDoneCallback},
+        //          calling the correct callback in the event, then del this._transferDoneCallbacks.file_transfer_id
+        //       b) Make this.transferFile / this.method.transfer a Promise, call jobDoneCallback there
+        //       c) Allow jobDoneCallback to be passed directly into this.transferFile / this.method.transfer as a
+        //          callback
         this.method.once('complete',
             (file_transfer_id, bytes_transferred, file_local_id) => {
               jobDoneCallback(file_transfer_id, bytes_transferred, file_local_id)
         });
     }
 
-    isSaturated() {
-        return this._saturated;
+    isFull() {
+        return (this._queue.length() >= this._queue.buffer);
     }
 
     isPaused() {
@@ -153,7 +161,7 @@ export class TransferQueueManager extends events.EventEmitter  {
 
     private onUpdateProgress(file_transfer_id: string, bytes_transferred: number, file_local_id: string) {
         console.info(`Transfer {FileTransferJob: ${file_transfer_id}, ` +
-                     `queue_id: ${this._queue.queue_id}, ` +
+                     `queue_id: ${this.queue_id}, ` +
                      `bytes_transferred: ${bytes_transferred}}`);
 
         let cachedTransfer = {
@@ -250,8 +258,12 @@ export class QueuePool {
         } as FileTransferJob;
     }
 
-    isSaturated(queue_id: string): boolean {
-        return this.getQueue(queue_id).isSaturated();
+    // isSaturated(queue_id: string): boolean {
+    //     return this.getQueue(queue_id).isSaturated();
+    // }
+
+    isFull(queue_id: string): boolean {
+        return this.getQueue(queue_id).isFull();
     }
 
     // We return a Promise here, so cache.ts can deal with updating the local cached status
@@ -261,8 +273,8 @@ export class QueuePool {
         let queue_unsaturated: boolean = true;
         let q = this.getQueue(transfer_job.destination_id);
 
-        if (q.isSaturated()) {
-            return Promise.reject(new Error(`Queue ${q.queue_id} saturated, not queueing job.`));
+        if (q.isFull()) {
+            return Promise.reject(new Error(`Queue ${q.queue_id} full, not queueing job.`));
         }
 
         return EDMQueries.updateFileTransfer({

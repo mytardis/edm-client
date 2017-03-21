@@ -10,7 +10,6 @@ const fs = require('fs-extra');
 const path = require('path');
 import * as tmp from 'tmp';
 
-import {settings} from "../lib/settings";
 import EDMFile from "../lib/file_tracking";
 import {TransferQueuePool} from "../lib/transfer_queue";
 import {LocalCache} from "../lib/cache";
@@ -20,10 +19,6 @@ let eventDebug = require('event-debug');
 describe("The transfer _queue ", function () {
 
     const mutation_id = 'a44f9922-ebae-4864-ae46-678efa394e7d';
-    // let host: EDMDestinationHost;
-    // let destination: EDMDestination;
-    // let source: EDMSource;
-    // let transfer_job: FileTransferJob;
     let mockObjs: any;
     const dataDir = getTmpDirPath();
 
@@ -41,59 +36,8 @@ describe("The transfer _queue ", function () {
             .reply(200, JSON.stringify(replyData));
     }
 
-    // function setupSettings() {
-    //     host = {
-    //         id: randomString(),
-    //         transfer_method: "dummy",
-    //         settings: {}
-    //     } as EDMDestinationHost;
-    //
-    //     destination = {
-    //         id: randomString(),
-    //         host_id: host.id,
-    //         location: getTmpDirPath('edmtest_destination_'),
-    //         exclusions: []
-    //     } as EDMDestination;
-    //
-    //     source = {
-    //         id: randomString(),
-    //         name: "testing source",
-    //         basepath: getTmpDirPath('edmtest_source_'),
-    //         checkMethod: "cron",
-    //         cronTime: "* */30 * * * *",
-    //         destinations: [destination],
-    //     } as EDMSource;
-    //
-    //     transfer_job = {
-    //         file_local_id: randomString(),
-    //         source_id: source.id,
-    //         destination_id: destination.id,
-    //         file_transfer_id: randomString(),
-    //     } as FileTransferJob;
-    //
-    //     let config = {
-    //         appSettings: {
-    //             "dataDir": dataDir,
-    //             "ignoreServerConfig": true
-    //         },
-    //         sources: [source],
-    //         hosts: [host],
-    //     } as Settings;
-    //
-    //     settings.setConfig(config);
-    // }
-
     before(function () {
         tmp.setGracefulCleanup();
-
-        // let initArgs = {
-        //     dataDir: dataDir,
-        //     serverSettings: {
-        //         host: "localhost:4000",
-        //         token: '_rand0m_JWT_t0ken'
-        //     },
-        // };
-        // settings.parseInitArgs(initArgs);
     });
 
     beforeEach("setup settings", () => {
@@ -107,8 +51,6 @@ describe("The transfer _queue ", function () {
     it("should be able to write many transfer jobs to the _queue, " +
         "receive 'transfer_complete' event when done", function (done) {
         const number_of_file_transfers = 10;
-
-        // mockObjs = setupSettings();
 
         let replyData = {
             data: {
@@ -124,6 +66,7 @@ describe("The transfer _queue ", function () {
                 }
             }
         };
+
         // number_of_file_transfers * (DummyTransfer.percent_increment + 2)
         // - One request for new -> queued
         // - 10 requests for each increment in dummy transfer
@@ -136,8 +79,12 @@ describe("The transfer _queue ", function () {
         let tq = TransferQueuePool.getQueue(mockObjs.destination.id);
         eventDebug(tq);
 
-        tq.on('finish', () => {
-            console.log(`Queue ${tq.queue_id} -> 'finish' event`);
+        tq.on('drain', () => {
+            console.log(`Queue ${tq.queue_id} -> 'drain' event`);
+        });
+
+        tq.on('empty', () => {
+            console.log(`Queue ${tq.queue_id} -> 'drain' event`);
         });
 
         tq.on('transfer_complete', (id, bytes, file_local_id) => {
@@ -164,7 +111,6 @@ describe("The transfer _queue ", function () {
     });
 
     it("should add a file to the transfer _queue when it has pending file transfers", function (done) {
-        // setupSettings();
 
         let now = Math.floor(Date.now() / 1000);
 
