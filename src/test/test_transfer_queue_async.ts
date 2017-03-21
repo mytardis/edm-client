@@ -12,6 +12,7 @@ import * as tmp from 'tmp';
 
 import EDMFile from "../lib/file_tracking";
 import FileTransferJob from "../lib/file_transfer_job";
+import {DummyTransfer} from "../lib/transfer_methods/dummy_transfer";
 import {TransferQueuePool} from "../lib/transfer_queue";
 import {LocalCache} from "../lib/cache";
 
@@ -52,6 +53,7 @@ describe("The transfer _queue ", function () {
     it("should be able to write many transfer jobs to the _queue, " +
         "receive 'transfer_complete' event when done", function (done) {
         const number_of_file_transfers = 10;
+        this.timeout(1000 + (number_of_file_transfers * new DummyTransfer().total_time));
 
         let replyData = {
             data: {
