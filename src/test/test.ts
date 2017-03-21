@@ -147,11 +147,11 @@ describe("Configuration options", function () {
     it("should allow setting the server address with -s",
         function (done) {
             ensure_cwd();
-            child_process.exec("node app.js -s edm.com config", function(
+            child_process.exec("node app.js -s edm.example.com config", function(
                 error: Error, stdout: Buffer, stderr: Buffer) {
                     assert.equal(
                         JSON.parse(stdout.toString("utf8")).serverSettings.host,
-                        "edm.com");
+                        "edm.example.com");
                     done();
             });
     });
