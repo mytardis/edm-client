@@ -3,6 +3,7 @@ const path = require('path');
 import * as tmp from 'tmp';
 import SynchrounousResult = tmp.SynchrounousResult;
 
+import FileTransferJob from "../lib/file_transfer_job";
 import {settings} from "../lib/settings";
 
 export function getTmpDirPath(prefix='edm_test') {
@@ -46,12 +47,12 @@ export function setupSettings(dataDir = null) {
         destinations: [mockObjs.destination],
     } as EDMSource;
 
-    mockObjs.transfer_job = {
-        file_local_id: randomString(),
-        source_id: mockObjs.source.id,
-        destination_id: mockObjs.destination.id,
-        file_transfer_id: randomString(),
-    } as FileTransferJob;
+    mockObjs.transfer_job = new FileTransferJob(
+        randomString(),
+        mockObjs.source.id,
+        mockObjs.destination.id,
+        randomString()
+    );
 
     let initArgs = {
         dataDir: dataDir,

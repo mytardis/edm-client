@@ -13,6 +13,7 @@ import {ApolloQueryResult} from "apollo-client";
 
 import {settings} from "./settings";
 import {LocalCache} from "./cache";
+import FileTransferJob from "./file_transfer_job";
 import {TransferMethod} from "./transfer_methods/transfer_method";
 import {TransferMethodPlugins} from "./transfer_methods/transfer_method_plugins";
 import {EDMQueries} from "./queries";
@@ -43,7 +44,7 @@ export class TransferQueueManager extends events.EventEmitter  {
         super();
 
         this._queue = new AsyncQueue((task, taskDone) => {
-            this.doTask(task, taskDone);
+            this._doTask(task, taskDone);
         });
         this.concurrency = _.get(settings.conf.appSettings, 'maxAsyncTransfersPerDestination', 1);
         this._queue.buffer = _.get(options, 'highWaterMark', 100000);
@@ -101,19 +102,8 @@ export class TransferQueueManager extends events.EventEmitter  {
         return this.isPaused() || this.isFull();
     }
 
-    doTask(job, jobDoneCallback) {
-        this.transferFile(job);
-        // TODO: This is wrong - 'complete' fires for ANY transfer completion. We need to match the
-        //       file_transfer_id with the correct jobDoneCallback. We can either:
-        //       a) keep a mapping list this._transferDoneCallbacks = {file_transfer_id: jobDoneCallback},
-        //          calling the correct callback in the event, then del this._transferDoneCallbacks.file_transfer_id
-        //       b) Make this.transferFile / this.method.transfer a Promise, call jobDoneCallback there
-        //       c) Allow jobDoneCallback to be passed directly into this.transferFile / this.method.transfer as a
-        //          callback
-        this.method.once('complete',
-            (file_transfer_id, bytes_transferred, file_local_id) => {
-              jobDoneCallback(file_transfer_id, bytes_transferred, file_local_id)
-        });
+    _doTask(job: FileTransferJob, jobDoneCallback: Function) {
+        this.transferFile(job, jobDoneCallback);
     }
 
     isFull() {
@@ -134,9 +124,9 @@ export class TransferQueueManager extends events.EventEmitter  {
         return this._queue.resume();
     }
 
-    private transferFile(transferJob: FileTransferJob) {
+    private transferFile(transferJob: FileTransferJob, doneCallback) {
 
-        const destinationHost = this.getDestinationHost(transferJob);
+        const destinationHost = transferJob.getDestinationHost();
         const destination = settings.getDestination(transferJob.destination_id);
         this.initTransferMethod(destinationHost, destination);
 
@@ -149,14 +139,9 @@ export class TransferQueueManager extends events.EventEmitter  {
         this.method.transfer(filepath,
                              destination_path,
                              transferJob.file_transfer_id,
-                             transferJob.file_local_id);
-    }
-
-    // TODO: This method probably belongs on a FileTransferJob class ?
-    private getDestinationHost(transferJob: FileTransferJob): EDMDestinationHost {
-        let host_id = settings.getDestination(transferJob.destination_id).host_id;
-        let destinationHost = settings.getHost(host_id);
-        return destinationHost;
+                             transferJob.file_local_id,
+                             doneCallback,
+        );
     }
 
     private onUpdateProgress(file_transfer_id: string, bytes_transferred: number, file_local_id: string) {
@@ -250,12 +235,11 @@ export class QueuePool {
 
     createTransferJob(cachedFile: EDMCachedFile,
                       transfer: EDMCachedFileTransfer): FileTransferJob {
-        return {
-            file_local_id: cachedFile._id,
-            source_id: cachedFile.source_id,
-            destination_id: transfer.destination_id,
-            file_transfer_id: transfer.id,
-        } as FileTransferJob;
+        return new FileTransferJob(
+            transfer.id,
+            cachedFile.source_id,
+            transfer.destination_id,
+            cachedFile._id);
     }
 
     // isSaturated(queue_id: string): boolean {

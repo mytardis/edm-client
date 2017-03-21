@@ -11,6 +11,7 @@ const path = require('path');
 import * as tmp from 'tmp';
 
 import EDMFile from "../lib/file_tracking";
+import FileTransferJob from "../lib/file_transfer_job";
 import {TransferQueuePool} from "../lib/transfer_queue";
 import {LocalCache} from "../lib/cache";
 
@@ -98,12 +99,12 @@ describe("The transfer _queue ", function () {
 
         let jobs: FileTransferJob[] = [];
         for (let n=0; n < number_of_file_transfers; n++) {
-            let job = {
-                file_local_id: randomString(),
-                source_id: mockObjs.source.id,
-                destination_id: mockObjs.destination.id,
-                file_transfer_id: randomString(),
-            } as FileTransferJob;
+            let job = new FileTransferJob(
+                randomString(),
+                mockObjs.source.id,
+                mockObjs.destination.id,
+                randomString(),
+            );
             jobs.push(job);
             let saturated = tq.queueTask(job);
             expect(saturated).to.be.false;

@@ -38,13 +38,18 @@ export class DummyTransfer extends TransferMethod {
      *
      * @param filepath
      * @param source_basepath
-     * @param file_transfer_id
+     * @param transfer_id
      * @param file_local_id
+     * @param doneCallback
      */
 
-    transfer(filepath: string, source_basepath: string, file_transfer_id: string, file_local_id: string) {
+    transfer(filepath: string,
+             source_basepath: string,
+             transfer_id: string,
+             file_local_id: string,
+             doneCallback: Function) {
 
-        this.emit('start', file_transfer_id, 0, file_local_id);
+        this.emit('start', transfer_id, 0, file_local_id);
 
         console.info(`Pretending to transfer: ${filepath} -> ${this.getDestinationPath(filepath, source_basepath)}`);
 
@@ -53,19 +58,21 @@ export class DummyTransfer extends TransferMethod {
         for (let bytes = 0; bytes <= this.total_bytes; bytes += byte_increment) {
             this.sleep(this.total_time * (bytes / this.total_bytes)).then(() => {
 
-                this.emit('progress', file_transfer_id, bytes, file_local_id);
+                this.emit('progress', transfer_id, bytes, file_local_id);
 
                 if (this.simulate_error_at != null && bytes >= this.simulate_error_at) {
-                    let error = "Something went wrong, transfer incomplete.";
-                    this.emit('fail', file_transfer_id, bytes, file_local_id, error);
+                    let error = new Error("Something went wrong, transfer incomplete.");
+                    doneCallback();
+                    this.emit('fail', transfer_id, bytes, file_local_id, error);
                 }
             });
         }
 
         // after total time has elapsed, emit final progress and the complete event
         this.sleep(this.total_time).then(() => {
-            this.emit('progress', file_transfer_id, this.total_bytes, file_local_id);
-            this.emit('complete', file_transfer_id, this.total_bytes, file_local_id);
+            doneCallback();
+            this.emit('progress', transfer_id, this.total_bytes, file_local_id);
+            this.emit('complete', transfer_id, this.total_bytes, file_local_id);
         });
     }
 

@@ -2,8 +2,9 @@
 
 // https://github.com/spmjs/node-scp2
 import * as path from "path";
+import * as fs from 'fs-extra';
 
-import { Client } from 'scp2';
+import {Client} from 'scp2';
 import {TransferMethod} from './transfer_method';
 
 export class SCP2Transfer extends TransferMethod {
@@ -17,30 +18,29 @@ export class SCP2Transfer extends TransferMethod {
         this.client = new Client(this.options.method_opts);
     }
 
-    transfer(filepath: string, file_transfer_id: string, progressCallback?): Promise<string> {
-        return new Promise((resolve, reject) => {
-            this.client.upload(
-                this.getSourcePath(filepath),
-                this.getDestinationPath(filepath),
-                (error) => {
-                    if (error == null) {
-                        resolve(file_transfer_id);
-                    } else {
-                        reject(error);
-                    }
-                });
-        });
+    transfer(filepath: string,
+             dest_filepath: string,
+             transfer_id: string,
+             file_local_id: string,
+             doneCallback: Function) {
+
+        const dest = this.getDestinationPath(dest_filepath);
+
+        this.emit('start', transfer_id, 0, file_local_id);
+        this.client.upload(
+            filepath,
+            dest,
+            (error) => {
+                doneCallback();
+                if (error == null) {
+                    this.emit('complete', transfer_id, fs.statSync(dest).size, file_local_id);
+                } else {
+                    this.emit('fail', transfer_id, null, file_local_id, error);
+                }
+            });
     }
 
-    private getSourcePath(filepath: string) {
-        return path.join(this.options.sourceBasePath, filepath);
+    private getDestinationPath(dest_filepath: string) {
+        return path.normalize(path.join(this.options.destBasePath, dest_filepath));
     }
-
-    private getDestinationPath(filepath: string) {
-        return path.join(this.options.destBasePath, filepath);
-    }
-
-    // private handleError(error) {
-    //     console.error(error);
-    // }
 }

@@ -9,6 +9,7 @@ let expect = chai.expect;
 import {createNewTmpfile} from "../lib/testutils";
 import {getTmpDirPath} from "../lib/testutils";
 
+import * as _ from "lodash";
 import * as fs from 'fs-extra';
 import * as tmp from 'tmp';
 const path = require('path');
@@ -34,7 +35,8 @@ describe("Local transfer method ", function() {
             source_file,
             destination_rel_path,
             'a_file_transfer_id',
-            'a_file_local_id_123'
+            'a_file_local_id_123',
+            _.noop
         );
         localTransfer.on('complete', (id, _size, local_id) => {
             expect(path.join(destination_base_path, destination_rel_path)).to.be.a.file().and.equal(source_file);
@@ -67,7 +69,8 @@ describe("Local transfer method ", function() {
             source_file,
             destination_rel_path,
             'a_file_transfer_id',
-            'a_file_local_id_123'
+            'a_file_local_id_123',
+            _.noop
         );
 
         localTransfer.on('fail', (id, _null, local_id, error) => {

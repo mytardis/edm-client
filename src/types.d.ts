@@ -30,15 +30,15 @@ interface Settings {
     sources?: EDMSource[];
 }
 
-type FileStatus =
-    "unknown"
-    | "new"
-    | "modified"
-    | "verifying"
-    | "pending_upload"
-    | "uploading"
-    | "interrupted"
-    | "uploaded";
+// type FileStatus =
+//     "unknown"
+//     | "new"
+//     | "modified"
+//     | "verifying"
+//     | "pending_upload"
+//     | "uploading"
+//     | "interrupted"
+//     | "uploaded";
 
 interface EDMCachedFile {
     _id: string;         // absolute file path (usually)
@@ -91,33 +91,12 @@ interface EDMDestinationHost {
 
 type TransferMethodName = "dummy" | "local" | "scp2";
 
-interface FileTransferJob {
-    //_id: string;
-    file_local_id: string;
-    source_id: string;
-    destination_id: string;
-    file_transfer_id: string;
-    //method: TransferMethodName;
-    //settings: any;
-}
-
 interface TransferMethodOptions {
     destBasePath?: string;
     sourceBasePath?: string;
     method_opts?: any;
     // Allows any property accessed like options['somePropName']. Dangerous.
     // [propName: string]: any;
-}
-
-interface ITransferQueue {
-    queue_id: string;
-    options?: any;
-    write(job: FileTransferJob): boolean;
-    read?(n?: number);
-    pause();
-    resume();
-    isPaused(): boolean;
-    on(eventName: string, callback: Function);
 }
 
 interface GQLEdgeList {
