@@ -1,7 +1,9 @@
 /// <reference path="../types.d.ts" />
 
-import * as fs from "fs";
+import * as fs from "fs-extra";
 import * as path from "path";
+
+import * as _ from "lodash";
 
 var ospath = require("ospath");
 
@@ -13,11 +15,11 @@ export class EDMSettings {
     conf: Settings = {};
 
     constructor() {
-        this.conf.appSettings = {};
+        this.conf.appSettings = <AppSettings>{};
         this.conf.serverSettings = {};
     }
 
-    parseConfigObject(parsedConf: Object) {
+    setConfig(parsedConf: Settings) {
         // const sections = [
         //     "sources", "endpoints",
         //     "serverSettings", "appSettings"];
@@ -27,21 +29,8 @@ export class EDMSettings {
             }
         }
 
-        if ('sources' in parsedConf) {
-            if (this.conf.sources == null) this.conf.sources = [];
-            for (let source of parsedConf['sources']) {
-                this.conf.sources.push(source);
-            }
-        }
-
-        if ('hosts' in parsedConf) {
-            if (this.conf.hosts == null) this.conf.hosts = {};
-            let hosts = parsedConf['hosts'];
-            for (let host in hosts) {
-                let value = hosts[host];
-                this.conf.hosts[host] = value;
-            }
-        }
+        this.conf.sources = _.get(parsedConf, 'sources', []);
+        this.conf.hosts = _.get(parsedConf, 'hosts', []);
     }
 
     readConfigFile(configFilePath: string) {
@@ -50,7 +39,7 @@ export class EDMSettings {
             try {
                 let configFileBuffer = fs.readFileSync(configFilePath);
                 configuration = JSON.parse(configFileBuffer.toString());
-                this.parseConfigObject(configuration);
+                this.setConfig(configuration as Settings);
             } catch (error) {
                 console.error(
                     `error: ${error} with config file at ${configFilePath}`);
@@ -73,9 +62,10 @@ export class EDMSettings {
         this.conf.serverSettings = <ServerSettings>{};
         // first load configuration file
         if (initArgs.configFilePath != null)
-            if (fs.existsSync(initArgs.configFilePath))
+            if (fs.existsSync(initArgs.configFilePath)) {
                 // use specified config file
                 this.readConfigFile(path.normalize(initArgs.configFilePath));
+            }
             else {
                 console.log("bad config file path: " + initArgs.configFilePath);
                 process.exit(1);
@@ -83,7 +73,7 @@ export class EDMSettings {
         else {
             // use default config file
             this.readConfigFile(
-                path.join(initArgs.dataDir || ospath.data(EDMSettings.app_name),
+                path.join(initArgs.dataDir || path.join(ospath.data(), EDMSettings.app_name),
                           EDMSettings.default_config_file_name));
         }
 
@@ -91,7 +81,7 @@ export class EDMSettings {
 
         // then override some settings if specified
         this.conf.appSettings.dataDir = initArgs.dataDir ||
-            this.conf.appSettings.dataDir || ospath.data(EDMSettings.app_name);
+            this.conf.appSettings.dataDir || path.join(ospath.data(), EDMSettings.app_name);
         this.ensureDataDirExists();
 
         this.conf.serverSettings.host = initArgs.serverAddress ||
@@ -104,8 +94,36 @@ export class EDMSettings {
 
     private ensureDataDirExists() {
         if (! fs.existsSync(this.conf.appSettings.dataDir)) {
-            fs.mkdirSync(this.conf.appSettings.dataDir, '700');
+            fs.mkdirpSync(this.conf.appSettings.dataDir, '700');
         }
+    }
+
+    public getDestination(destination_id: string): EDMDestination {
+        let destination = null;
+        for (let source of this.conf.sources) {
+            for (let dest of source.destinations) {
+                if (dest.id === destination_id) {
+                    destination = dest;
+                    break;
+                }
+            }
+            if (destination != null) break;
+        }
+
+        if (destination == null) throw Error(`Destination not found: ${destination_id}`);
+        return destination;
+    }
+
+    public getSource(source_id: string): EDMSource {
+        let source: EDMSource =  _.find(this.conf.sources, {"id": source_id });
+        if (source == null) throw Error(`Source not found: ${source_id}`);
+        return source;
+    }
+
+    public getHost(host_id: string): EDMDestinationHost {
+        let host: EDMDestinationHost =  _.find(this.conf.hosts, {"id": host_id });
+        if (host == null) throw Error(`Host not found: ${host_id}`);
+        return host;
     }
 }
 

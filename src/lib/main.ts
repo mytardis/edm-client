@@ -15,6 +15,7 @@ import {CronJob} from 'cron';
 import {EDMConnection} from "../edmKit/connection";
 import {settings} from "./settings";
 import {EDMFileWatcher} from "./file_watcher";
+import {EDMQueries} from "./queries";
 
 function print_json(data) {
     console.log(JSON.stringify(data, null, 2))
@@ -33,38 +34,8 @@ export class EDM {
             settings.conf.serverSettings.token);
     }
 
-    backendQuery(): ObservableQuery {
-        const query = gql`
-query MeQuery {
-  currentClient {
-    id
-    attributes
-      sources {
-      id
-      name
-      destinations {
-        base
-        id
-        host {
-          id
-        }
-      }
-    }
-    hosts {
-      id
-      settings
-      name
-    }
-  }
-}        `;
-        return this.client.watchQuery({
-            query: query,
-            variables: {},
-        })
-    }
-
     startConfigPolling() {
-        const backendQuery = this.backendQuery();
+        const backendQuery = EDMQueries.configQuery({}, this.client);
         backendQuery.subscribe({
             next: (value) => {
                 let clientInfo = value.data.currentClient;
@@ -72,16 +43,16 @@ query MeQuery {
                 print_json(clientInfo.sources);
                 this.stop();
                 if (!settings.conf.appSettings.ignoreServerConfig) {
-                    settings.parseConfigObject({
+                    settings.setConfig({
                         sources: clientInfo.sources,
-                        hosts: clientInfo.hosts});
+                        hosts: clientInfo.hosts} as Settings);
                 }
                 this.setUp();
                 print_json(settings.conf);
             },
             error: (error) => {
                 console.log("configpoll error " + error);
-                // TODO: restart startConfigPolling after a delay
+                // TODO: restart startConfigPolling after a total_time
             },
             complete: () => {console.log("configpoll complete")}});
         backendQuery.startPolling(EDM.pingBackendInterval);

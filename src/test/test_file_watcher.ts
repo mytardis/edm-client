@@ -4,23 +4,22 @@ import * as tmp from 'tmp';
 import {expect} from "chai";
 import * as nock from "nock";
 
+import {createNewTmpfile} from "../lib/testutils";
+import {getTmpDirPath} from "../lib/testutils";
+
 import {settings} from "../lib/settings";
 import {EDMFileWatcher} from "../lib/file_watcher";
 import EDMFile from "../lib/file_tracking";
+import {EDMFileCache} from "../lib/cache";
+import {EDMQueries} from "../lib/queries";
 
 describe("file watcher", function () {
-    const dataDir = tmp.dirSync({ prefix: 'edmtest_'}).name;
-    const dirToIngest = path.join(dataDir, 'tmp');
+    let dataDir: string;
+    let dirToIngest: string;
     let edmBackend: any;
     const mutation_id = 'a44f9922-ebae-4864-ae46-678efa394e7d';
     let tmpFile: string;
     let replyData: any;
-
-    function createNewTmpfile(): string {
-        let tmpobj = tmp.fileSync({ dir: dirToIngest, prefix: 'tmp-' });
-        fs.outputFileSync(tmpobj.name, 'some data\n', function (err) { console.log(err) });
-        return tmpobj.name;
-    }
 
     function prepareForGqlRequest(times: number = 1) {
         edmBackend = nock('http://localhost:4000').log(console.log)
@@ -38,6 +37,12 @@ describe("file watcher", function () {
 
     before("set up test env", () => {
         tmp.setGracefulCleanup();
+    });
+
+    function prepareEnv() {
+        dataDir = getTmpDirPath('edm-settings-dir');
+        dirToIngest = getTmpDirPath('edm-files-to-ingest');
+        tmpFile = createNewTmpfile(dirToIngest);
 
         const initArgs = {
             dataDir: dataDir,
@@ -48,48 +53,72 @@ describe("file watcher", function () {
 
         settings.parseInitArgs(initArgs);
 
-        fs.mkdirSync(dirToIngest);
-        tmpFile = createNewTmpfile();
         replyData = {
             "data": {
                 "createOrUpdateFile": {
-                    "clientMutationId": mutation_id,
                     "file": {
                         "filepath": tmpFile,
-                        "file_transfers": [
-                            { "transfer_status" : "complete",
-                              "destination": {"host_id": "massive"}
-                            },
-                            {
-                              "transfer_status" : "pending_upload",
-                              "destination": {"host_id": "mytardis"}
-                            },
-                        ]
+                        "file_transfers": {
+                            "edges": [
+                                {
+                                    "node": {
+                                        "status": "new" as TransferStatus,
+                                        "id": "RmlsZVRyYW5zZmVyOmE4MGQ2OTkzLWM0YWEtNDUwNC1iNDYwLWMzNWFjYzgzZjgwOA==",
+                                        "destination": {
+                                            "host": {
+                                                "id": "massive"
+                                            }
+                                        },
+                                        "bytes_transferred": null
+                                    }
+                                },
+                                {
+                                    "node": {
+                                        "status": "queued" as TransferStatus,
+                                        "id": "RmlsZVRyYW5zZmVyOmE4MGQ2OTkzLWM0YWEtNDUwNC1iNDYwLWMzNWFjYzgzZjgwOA==",
+                                        "destination": {
+                                            "host": {
+                                                "id": "mytardis"
+                                            }
+                                        },
+                                        "bytes_transferred": null
+                                    }
+                                }
+                            ]
+                        }
                     },
+                    "clientMutationId": mutation_id
                 }
             }
-        };
+        }
+    };
+
+    afterEach("cleanup after each test", () => {
+        nock.cleanAll();
     });
 
     it("should register and cache new files", (done) => {
+        prepareEnv();
         prepareForGqlRequest();
-        tmpFile = createNewTmpfile();
-        let watcher = new EDMFileWatcher({'basepath': dirToIngest});
-        const edmFile: EDMFile = new EDMFile(dirToIngest, path.basename(tmpFile));
+
+        let source: EDMSource = {
+            basepath: dirToIngest,
+            name: 'test_source',
+            id: '__source_UUID__',
+            checkMethod: 'manual' as FilesystemMonitorMethod,
+        };
+        let watcher = new EDMFileWatcher(source);
+
+        const edmFile: EDMFile = new EDMFile(source, path.basename(tmpFile));
         watcher.registerAndCache(edmFile)
             .then((backendResponse) => {
-                watcher.cache.getEntry(edmFile)
-                    .then((doc) => {
-                        const expected = replyData.data.createOrUpdateFile.file.file_transfers;
-                        expect(doc.transfers[0].transfer_status).to.equal(expected[0].transfer_status);
-                        expect(doc.transfers[1].transfer_status).to.equal(expected[1].transfer_status);
-                        console.log(doc);
-                        done();
-                    })
-                    .catch((error) => {
-                        console.error(error);
-                        done(error);
-                    });
+                return watcher.cache.getEntry(edmFile);
+            }).then((doc) => {
+                const expected = EDMQueries.unpackFileTransferResponse(replyData.data.createOrUpdateFile.file.file_transfers);
+                expect(doc.transfers[0].status).to.equal(expected[0].status);
+                expect(doc.transfers[1].status).to.equal(expected[1].status);
+                console.log(doc);
+                done();
             })
             .catch((error) => {
                 console.error(error);
@@ -98,15 +127,17 @@ describe("file watcher", function () {
     });
 
     it("should list files in a folder", (done) => {
+        prepareEnv();
         prepareForGqlRequest(2);
-        tmpFile = createNewTmpfile();
 
         console.log(settings.conf.appSettings.dataDir);
-        let watcher = new EDMFileWatcher({'basepath': dirToIngest});
+        console.log(dirToIngest);
+        let watcher = new EDMFileWatcher({basepath: dirToIngest});
+        watcher.cache = new EDMFileCache('testing');
         watcher.endWalk = () => {
-            const numfiles = watcher.lastWalkItems.length;
-            expect(numfiles).to.be.greaterThan(1);
-            watcher.cache.db.allDocs().then((result) => {
+            const numfiles = watcher.lastWalkItems.length - 2;
+            expect(numfiles).to.be.equal(1);
+            watcher.cache._db.allDocs().then((result) => {
                 console.log(`allDocs: ${JSON.stringify(result)}`);
                 console.log(`numfiles: ${numfiles}`);
                 // db adds aren't always complete yet, can be improved
@@ -119,8 +150,4 @@ describe("file watcher", function () {
         };
         watcher.walk();
     });
-
-    after(function() {
-
-    })
 });

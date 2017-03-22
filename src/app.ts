@@ -42,7 +42,7 @@ function startup() {
  * - show configuration
  *
  * background service
- * - start service
+ * - onReadable service
  * - install service
  * - stop service
  * - send command to service
@@ -68,14 +68,14 @@ function startup() {
 
 let args: yargs.Argv = yargs.usage("Usage: edm-client [options] action")
     .command('run', 'Run foreground service according to existing settings')
-    .command('start', 'Start system service')
+    .command('onReadable', 'Start system service')
     .command('stop', 'Stop system service')
     .command('upload', 'Upload specific file or directory')
     .command('config', 'Show current configuration')
     .check(function(args: yargs.Argv, opts: any): yargs.Argv {
-        if (['service', 'start', 'stop', 'upload', 'config'].indexOf(
+        if (['service', 'onReadable', 'stop', 'upload', 'config'].indexOf(
             args['_'][0]) === -1)
-            throw "Please provide valid command";
+            throw Error("Please provide valid command");
         return args;
     })
     .option('c', {
@@ -154,7 +154,7 @@ switch (command) {
     case "service":
         console.log("starting system service");
         break;
-    case "start":
+    case "onReadable":
     default:
         app.start();
         break;
