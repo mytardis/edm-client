@@ -1,44 +1,48 @@
 {
   "sources": [
     {
-      "name": "test source",
+      "id": "U291cmNlOmE1ODExMmZkLTg1NDEtNGQwYy1iZmZmLTk0YjMxODEyZmFhNQ==",
+      "name": "test_source",
       "basepath": "/tmp/test-1",
       "checkMethod": "cron",
       "cronTime": "*/5 * * * * *",
       "destinations": [
         {
-          "host_id": "massive",
-          "location": "/home/test/test-1",
+          "id": "RGVzdGluYXRpb246YjU4MTEyZmQtODU0MS00ZDBjLWJmZmYtOTRiMzE4MTJmYWE2",
+          "host_id": "SG9zdDowMTA5Y2MzZC1hNGM3LTQ1NTQtYjM5NC1kOThkM2VlZTYzYjc=",
+          "location": "/tmp/test-dest-1",
           "exclusions": [
             "*~"
           ]
         },
         {
+          "id": "uuid-a-mytardis-destination",
           "host_id": "mytardis",
           "location": "test-1-bucket"
         }
       ]
     }
   ],
-
-  "hosts": {
-     "massive": {
-         "transfer_method": "scp2",
-         "settings": {
-             "host": "massive.monash.edu",
-             "port": 22,
-             "username": "edm-tester",
-             "privateKey": "AAAABBBCCCCEEDSEFAEFAEFAEFwefaewf982y3fh9"
-         }
-     },
-     "mytardis": {
-         "transfer_method": "S3",
-         "settings": {
-             "EC2_ACCESS_KEY": "ABC123",
-             "EC2_SECRET_KEY": "CDE456"
-         }
-     }
-  },
+  "hosts": [
+    {
+      "id": "SG9zdDowMTA5Y2MzZC1hNGM3LTQ1NTQtYjM5NC1kOThkM2VlZTYzYjc=",
+      "transfer_method": "local",
+      "settings": {
+        "host": "massive.monash.edu",
+        "port": 22,
+        "username": "edm-tester",
+        "privateKey": "AAAABBBCCCCEEDSEFAEFAEFAEFwefaewf982y3fh9"
+      }
+    },
+    {
+      "id": "uuid-mytardis-host",
+      "transfer_method": "S3",
+      "settings": {
+        "EC2_ACCESS_KEY": "ABC123",
+        "EC2_SECRET_KEY": "CDE456"
+      }
+    }
+  ],
 
   "serverSettings": {
     "host": "localhost:4000",

@@ -1,30 +1,25 @@
 import * as path from 'path';
 import * as _ from "lodash";
 const fs = require('fs-extra');
-const querystring = require('querystring');
+var klaw = require('klaw')
 
 import {ApolloQueryResult} from "apollo-client";
 
 import * as through2 from 'through2';
-import {settings} from "./settings";
-import {EDMConnection} from "../edmKit/connection";
 import EDMFile from "./file_tracking";
 import {EDMFileCache} from "./cache";
 import {EDMQueries} from "./queries";
-
+import {LocalCache} from "./cache";
 
 export class EDMFileWatcher {
-    client: EDMConnection;
-    source: any;            // TODO: define <EDMFileSource> interface ?
-    basepath: string;        // TODO: make this: get basepath { return this.source.basepath };
+    source: EDMSource;
     cache: EDMFileCache;
     filters: any = [];
     lastWalkItems: any;
 
     constructor(source: any, exclude?: any) {
         this.source = source;
-        this.basepath = this.source.basepath;
-        this.cache = new EDMFileCache(querystring.escape(this.basepath));
+        this.cache = LocalCache.cache;
         if (exclude != null) {
             const excluder = new RegExp(exclude);
             let exclude_filter = (path) => {
@@ -32,14 +27,11 @@ export class EDMFileWatcher {
             };
             this.filters.push(exclude_filter);
         }
-        this.client = new EDMConnection(
-            settings.conf.serverSettings.host,
-            settings.conf.serverSettings.token);
     }
 
     walk(job?: any) {
         // using https://github.com/jprichardson/node-klaw
-        const walker = fs.walk(this.basepath);
+        const walker = klaw(this.source.basepath);
         const items = [];
         for (let filter of this.filters) {
             walker.pipe(through2.obj((item, enc, next) => {
@@ -64,21 +56,28 @@ export class EDMFileWatcher {
             console.log('file is null');
             return;
         }
-        if (file.path == this.basepath) {
+        if (file.path === this.source.basepath) {
             console.log("handleFile: skipping handling basepath '.' file")
             return;
         }
 
         // console.log(file);
-        const relpath = path.relative(this.basepath, file.path);
-        let edmFile = new EDMFile(this.basepath, relpath, file.stats);
+        const relpath = path.relative(this.source.basepath, file.path);
+        let edmFile = new EDMFile(this.source, relpath);
         this.cache.getEntry(edmFile).then((cached) => {
 
             // compare on-disk to local db
             if (this.fileHasChanged(edmFile, cached)) {
-                this.registerAndCache(edmFile, cached);
+                this.registerAndCache(edmFile, cached)
+                    // .then((backendResponse) => {
+                    //     console.log(`${JSON.stringify(backendResponse)}`);
+                    //     this.cache.queuePendingTransfers(cached);
+                    // })
+                    .catch((error) => {
+                        console.error(`Failed to register and cache: ${JSON.stringify(edmFile)} - ${error}`);
+                    })
             }
-            console.log(`${cached._id} is in cache (transfers: ${cached.transfers})`);
+            console.log(`${cached._id} is in cache (transfers: ${JSON.stringify(cached.transfers)})`);
         }).catch((error) => {
             if (error.name === "not_found") {
                 // new file (unknown to client, may be known to server if local cache was cleared)
@@ -104,29 +103,28 @@ export class EDMFileWatcher {
                 file.hash !== cachedFile.hash);
     }
 
-    private needsUpload(cachedRecord: EDMCachedFile) {
-        return _.some(cachedRecord.transfers, {transfer_status: 'pending_upload'});
-    }
+    // private needsUpload(cachedRecord: EDMCachedFile) {
+    //     return _.some(cachedRecord.transfers, {transfer_status: 'new' as TransferStatus});
+    // }
+    //
+    // private pendingTransfers(cachedRecord: EDMCachedFile) {
+    //     return _.filter(cachedRecord.transfers, {transfer_status: 'new' as TransferStatus});
+    // }
 
-    private pendingTransfers(cachedRecord: EDMCachedFile) {
-        return _.filter(cachedRecord.transfers, {transfer_status: 'pending_upload'});
-    }
-
-    public registerAndCache(localFile: EDMFile, cachedRecord?: EDMCachedFile): Promise<ApolloQueryResult> {
-        return EDMQueries.registerFileWithServer(localFile, this.source.name, this.client)
+    public registerAndCache(localFile: EDMFile, cachedRecord?: EDMCachedFile): Promise<ApolloQueryResult<any>> {
+        let s = this.source;
+        return EDMQueries.registerFileWithServer(localFile, this.source.name)
             .then((backendResponse) => {
-                const transfers = _.get(
-                    backendResponse.data.createOrUpdateFile.file, 'file_transfers', []);
                 let doc: EDMCachedFile = localFile.getPouchDocument();
                 if (cachedRecord != null) { // we are updating an existing record
                     doc._id = cachedRecord._id;
                     doc._rev = cachedRecord._rev;
                 }
-                doc.transfers = transfers;
-                this.cache.db.put(doc).catch((error) => {
+                const transfers: GQLEdgeList = _.get(backendResponse.data.createOrUpdateFile.file, 'file_transfers', null);
+                doc.transfers = EDMQueries.unpackFileTransferResponse(transfers);
+                this.cache.addFile(doc).catch((error) => {
                     console.error(`Cache put failed: ${error}`);
                 });
-                // console.log(backendResponse);
                 return backendResponse;
             })
             .catch((error) => {
@@ -139,7 +137,7 @@ export class EDMFileWatcher {
     private handleError(error: any, job?: any) {
         console.error(error);
         if (error.code == "ENOENT" &&
-            error.path === path.resolve(this.basepath))
+            error.path === path.resolve(this.source.basepath))
             if (job != null) {
                 console.error("stopping cron job");
                 job.stop();
