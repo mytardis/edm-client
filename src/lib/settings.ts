@@ -1,6 +1,6 @@
 /// <reference path="../types.d.ts" />
 
-import * as fs from "fs";
+import * as fs from "fs-extra";
 import * as path from "path";
 
 import * as _ from "lodash";
@@ -94,7 +94,7 @@ export class EDMSettings {
 
     private ensureDataDirExists() {
         if (! fs.existsSync(this.conf.appSettings.dataDir)) {
-            fs.mkdirSync(this.conf.appSettings.dataDir, '700');
+            fs.mkdirpSync(this.conf.appSettings.dataDir, '700');
         }
     }
 
