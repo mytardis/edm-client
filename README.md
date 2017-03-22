@@ -18,6 +18,11 @@ cd build
 node app run -c ../edm-settings.json
 ```
 
+## Packaging standalone executable
+```
+npm run-script pkg
+```
+
 ## Auth setup
 
 Run edm-mock-auth server:
