@@ -124,6 +124,8 @@ describe("The transfer _queue ", function () {
 
     it("should add a file to the transfer _queue when it has pending file transfers", function (done) {
 
+        this.timeout(10000);
+
         let now = Math.floor(Date.now() / 1000);
 
         let transferRecord = {
