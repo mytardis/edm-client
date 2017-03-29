@@ -25,7 +25,7 @@ describe("file watcher", function () {
     let replyData: any;
 
     function prepareForGqlRequest(times: number = 1) {
-        edmBackend = nock('http://localhost:4000').log(log.debug)
+        edmBackend = nock('http://localhost:4000') //.log(log.debug)
             .defaultReplyHeaders({
                 'Content-Type': 'application/json; charset=utf-8'
             })

@@ -74,7 +74,7 @@ describe("A mock EDM backend service", function () {
             }
         };
 
-        let edmBackend = nock('http://localhost:4000').log(log.debug)
+        let edmBackend = nock('http://localhost:4000') //.log(log.debug)
             .defaultReplyHeaders({
                 'Content-Type': 'application/json; charset=utf-8'
             })

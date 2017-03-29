@@ -28,7 +28,7 @@ describe("The transfer _queue ", function () {
     const dataDir = getTmpDirPath();
 
     function prepareForGqlRequest(replyData: any, times: number = 1): nock.Scope {
-        return nock('http://localhost:4000').log(log.debug)
+        return nock('http://localhost:4000') //.log(log.debug)
             .defaultReplyHeaders({
                 'Content-Type': 'application/json; charset=utf-8'
             })
@@ -124,7 +124,7 @@ describe("The transfer _queue ", function () {
 
     it("should add a file to the transfer _queue when it has pending file transfers", function (done) {
 
-        this.timeout(10000);
+        this.timeout(5000);
 
         let now = Math.floor(Date.now() / 1000);
 

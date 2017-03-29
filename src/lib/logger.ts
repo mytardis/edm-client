@@ -2,6 +2,7 @@ import * as loggly from './logging/loggly';
 
 const bunyan = require('bunyan');
 const PrettyStream = require('bunyan-prettystream');
+const bunyanDebugStream = require('bunyan-debug-stream');
 
 const prettyStdOut = new PrettyStream();
 prettyStdOut.pipe(process.stdout);
@@ -11,13 +12,24 @@ prettyStdOut.pipe(process.stdout);
 
 export const log = bunyan.createLogger({
     name: 'edm-client',
-    serializers: {err: bunyan.stdSerializers.err},
+    serializers: bunyanDebugStream.serializers,  // {err: bunyan.stdSerializers.err},
     streams: [
+        // {
+        //     level: 'debug',
+        //     type: 'raw',
+        //     stream: prettyStdOut
+        // },
+
+        // bunyan-debug-stream output is more compact than bunyan-prettystream
         {
             level: 'debug',
             type: 'raw',
-            stream: prettyStdOut
-        }]
+            stream: bunyanDebugStream({
+                basepath: __dirname,
+                forceColor: true,
+            })
+        },
+    ]
 });
 
 export function init_settings_dependent_loggers() {
