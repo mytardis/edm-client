@@ -69,6 +69,6 @@
     "ts-node": "^1.7.2",
     "tslint": "^3.13.0",
     "typed-graphql": "^1.0.1",
-    "typescript": "2.1.4",
+    "typescript": "2.1.4"
   }
 }
