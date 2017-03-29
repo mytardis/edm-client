@@ -18,6 +18,9 @@ import {TransferMethod} from "./transfer_methods/transfer_method";
 import {TransferMethodPlugins} from "./transfer_methods/transfer_method_plugins";
 import {EDMQueries} from "./queries";
 
+import * as logger from "./logger";
+const log = logger.log.child({'tags': ['transfer_queue']});
+
 /**
  * This task _queue implementation implements parts of a stream.Duplex
  * interface (ITransferQueue) so that it can be used (almost) interchangeably
@@ -57,26 +60,26 @@ export class TransferQueueManager extends events.EventEmitter  {
         //   remaining".
         this._queue.unsaturated = () => {
             this.emit('unsaturated', this);
-            // console.log(`${this.queue_id}: Queue: became unsaturated.`);
+            log.debug({event: 'unsaturated'}, `Queue ${this.queue_id}: became unsaturated`);
         };
 
         // Fires when the number of running workers == concurrency.
         // Tasks will be buffered rather than consumed by workers immediately.
         this._queue.saturated = () => {
             this.emit('saturated', this);
-            console.log(`${this.queue_id}: Queue: workers busy. Additional tasks will be queued.`);
+            log.debug({event: 'saturated'}, `Queue ${this.queue_id}: workers busy. Additional tasks will be queued.`);
         };
 
         // Fires when the last buffered item has given to a worker
         this._queue.empty = () => {
             this.emit('empty', this);
-            console.log(`${this.queue_id}: Queue: became empty.`);
+            log.debug({event: 'empty'}, `Queue: ${this.queue_id} became empty.`);
         };
 
         // Fires when the buffer is empty and all workers have finished
         this._queue.drain = () => {
             this.emit('drain', this);
-            console.log(`${this.queue_id}: Queue: all workers became idle, no tasks queued.`);
+            log.debug({event: 'drain'}, `Queue ${this.queue_id}: all workers became idle, no tasks queued.`);
         };
     }
 
@@ -145,9 +148,13 @@ export class TransferQueueManager extends events.EventEmitter  {
     }
 
     private onUpdateProgress(file_transfer_id: string, bytes_transferred: number, file_local_id: string) {
-        console.info(`Transfer {FileTransferJob: ${file_transfer_id}, ` +
-                     `queue_id: ${this.queue_id}, ` +
-                     `bytes_transferred: ${bytes_transferred}}`);
+        log.debug({
+            event: 'progress',
+            queue_id: this.queue_id,
+            file_transfer_id: file_transfer_id,
+            bytes_transferred: bytes_transferred,
+            file_local_id: file_local_id},
+            `Transfer progress, file_transfer_id: ${file_transfer_id}, queue_id: ${this.queue_id}, bytes_transferred: ${bytes_transferred}}`);
 
         let cachedTransfer = {
             id: file_transfer_id,
@@ -173,10 +180,19 @@ export class TransferQueueManager extends events.EventEmitter  {
             // TODO: Here (and in onTransferComplete), we need to check the status of
             //       the file_transfer returned. If the status == 'cancelled', or the
             //       file_transfer record doesn't exist (record deleted), cancel the transfer.
-            console.log(`${JSON.stringify(backendResponse)}`);
+            log.debug({event: 'progress', result: backendResponse},
+                `Updated backend with transfer progress: ${file_transfer_id}`);
         })
         .catch((error) => {
-            console.log(`${error}`);
+            log.error({
+                    err: error,
+                    event: 'progress',
+                    queue_id: this.queue_id,
+                    file_transfer_id: file_transfer_id,
+                    bytes_transferred: bytes_transferred,
+                    file_local_id: file_local_id
+                },
+                `Failed to update transfer progress: ${file_transfer_id}`);
         });
     }
 
@@ -185,9 +201,13 @@ export class TransferQueueManager extends events.EventEmitter  {
         //       transfers (in the case where the server is unable to verify itself).
         //       (Retries at Apollo client level ?
         //        Persist in PouchDB and periodically retry until server responds, then remove record ? )
-        console.info(`Transfer complete {FileTransferJob: ${file_transfer_id}, ` +
-                     `queue_id: ${this.queue_id}, ` +
-                     `bytes_transferred: ${bytes_transferred}}`);
+        log.debug({
+            event: 'complete',
+            queue_id: this.queue_id,
+            file_transfer_id: file_transfer_id,
+            bytes_transferred: bytes_transferred,
+            file_local_id: file_local_id},
+            `Transfer complete, file_transfer_id: ${file_transfer_id}, queue_id: ${this.queue_id}, bytes_transferred: ${bytes_transferred}}`);
 
         let cachedTransfer = {
             id: file_transfer_id,
@@ -211,10 +231,19 @@ export class TransferQueueManager extends events.EventEmitter  {
             return EDMQueries.updateFileTransfer(cachedTransfer);
         })
         .then((backendResponse) => {
-            console.log(`${JSON.stringify(backendResponse)}`);
+            log.debug({event: 'progress', result: backendResponse},
+                `Updated backend with transfer complete status: ${file_transfer_id}`);
         })
         .catch((error) => {
-            console.log(`${error}`);
+            log.error({
+                    err: error,
+                    event: 'complete',
+                    queue_id: this.queue_id,
+                    file_transfer_id: file_transfer_id,
+                    bytes_transferred: bytes_transferred,
+                    file_local_id: file_local_id
+                },
+                `Failed to update transfer complete status: ${file_transfer_id}`);
         });
     }
 }

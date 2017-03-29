@@ -12,6 +12,9 @@ import {LocalCache} from "../lib/cache";
 import {settings} from "../lib/settings";
 import file = tmp.file;
 
+import * as logger from "../lib/logger";
+const log = logger.log.child({'tags': ['test', 'test_file_tracking']});
+
 describe("file tracker", function () {
 
     before("set up test env", function () {
@@ -20,8 +23,6 @@ describe("file tracker", function () {
     });
 
     it("should hash a file and its metadata", function () {
-        console.log(settings.conf.appSettings.dataDir);
-
         const sourceBasePath = getTmpDirPath();
         const source = {
             id: "test_source",
@@ -54,7 +55,7 @@ describe("file tracker", function () {
         const cache = LocalCache.cache;
         cache.getEntry(file)
         .then((result) => {
-            console.log(result);
+            log.debug({result: result});
             expect("should fail").to.equal("to find the file in the cache");
             done();
         })
@@ -78,11 +79,11 @@ describe("file tracker", function () {
 
         cache.addFile(file)
             .then((putResult) => {
-                console.log(`Added new file to cache: ${putResult._id}`);
+                log.debug({result: putResult}, `Added new file to cache: ${putResult._id}`);
 
                 cache.getEntry(file)
                     .then((doc) => {
-                        console.log(JSON.stringify(doc));
+                        log.debug({result: doc}, `Found cached file record: ${doc._id}`);
                         expect(doc._id).to.equal(file._id);
                         expect(doc.hash).to.equal(file.hash);
                         expect(doc.size).to.equal(file.stats.size);
@@ -95,7 +96,7 @@ describe("file tracker", function () {
                     });
             })
             .catch((error) => {
-                console.error(`Cache put failed: ${error}`);
+                log.error({err: error}, `Cache put failed for file: ${file._id}`);
             });
     });
 });

@@ -19,6 +19,7 @@ interface AppSettings {
     dataDir?: string;
     ignoreServerConfig?: boolean;
     concurrency?: number;
+    logging?: any;
 }
 
 interface Settings {

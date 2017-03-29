@@ -6,13 +6,16 @@ import SynchrounousResult = tmp.SynchrounousResult;
 import FileTransferJob from "../lib/file_transfer_job";
 import {settings} from "../lib/settings";
 
+import * as logger from "../lib/logger";
+const log = logger.log.child({'tags': ['test', 'testutils']});
+
 export function getTmpDirPath(prefix='edm_test') {
     return tmp.dirSync({prefix: prefix}).name;
 }
 
 export function createNewTmpfile(basepath, data='some data\n', prefix='tmp-'): string {
     let tmpobj = tmp.fileSync({ dir: basepath, prefix: prefix });
-    fs.outputFileSync(tmpobj.name, data, function (err) { console.log(err) });
+    fs.outputFileSync(tmpobj.name, data, function (error) { log.error({err: error}, `Error writing file: ${tmpobj.name}`) });
     return tmpobj.name;
 }
 

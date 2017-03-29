@@ -16,6 +16,9 @@ import {DummyTransfer} from "../lib/transfer_methods/dummy_transfer";
 import {TransferQueuePool} from "../lib/transfer_queue";
 import {LocalCache} from "../lib/cache";
 
+import * as logger from "../lib/logger";
+const log = logger.log.child({'tags': ['test', 'test_transfer_queue_async']});
+
 let eventDebug = require('event-debug');
 
 describe("The transfer _queue ", function () {
@@ -25,7 +28,7 @@ describe("The transfer _queue ", function () {
     const dataDir = getTmpDirPath();
 
     function prepareForGqlRequest(replyData: any, times: number = 1): nock.Scope {
-        return nock('http://localhost:4000').log(console.log)
+        return nock('http://localhost:4000').log(log.debug)
             .defaultReplyHeaders({
                 'Content-Type': 'application/json; charset=utf-8'
             })
@@ -83,15 +86,21 @@ describe("The transfer _queue ", function () {
         eventDebug(tq);
 
         tq.on('drain', () => {
-            console.log(`Queue ${tq.queue_id} -> 'drain' event`);
+            log.debug({event: 'drain', queue_id: tq.queue_id}, `Queue ${tq.queue_id} -> 'drain' event`);
         });
 
         tq.on('empty', () => {
-            console.log(`Queue ${tq.queue_id} -> 'drain' event`);
+            log.debug({event: 'empty', queue_id: tq.queue_id}, `Queue ${tq.queue_id} -> 'drain' event`);
         });
 
         tq.on('transfer_complete', (id, bytes, file_local_id) => {
-            console.log(`Transfer ${id} of file ${file_local_id} on queue ${tq.queue_id} completed (${bytes} bytes)`);
+            log.debug({
+                event: 'transfer_complete',
+                queue_id: tq.queue_id,
+                file_transfer_id: id,
+                bytes_transferred: bytes,
+                file_local_id: file_local_id
+            }, `Transfer ${id} of file ${file_local_id} on queue ${tq.queue_id} completed (${bytes} bytes)`);
             completed_transfers++;
             if (completed_transfers == number_of_file_transfers) {
                 // expect(mockBackend.isDone()).to.be.true;
@@ -160,7 +169,13 @@ describe("The transfer _queue ", function () {
         eventDebug(tq);
 
         tq.on('transfer_complete', (transfer_id, bytes, file_local_id) => {
-            console.info(`Transfer ${transfer_id} (file_local_id: ${file_local_id}) of ${bytes} bytes completed`);
+            log.debug({
+                event: 'transfer_complete',
+                queue_id: tq.queue_id,
+                file_transfer_id: transfer_id,
+                bytes_transferred: bytes,
+                file_local_id: file_local_id
+            }, `Transfer ${transfer_id} (file_local_id: ${file_local_id}) of ${bytes} bytes completed`);
             done();
         });
 
@@ -168,10 +183,10 @@ describe("The transfer _queue ", function () {
 
         cache.addFile(cachedFile)
             .then((putResult) => {
-                console.log(`Added new file to cache: ${putResult.id}`);
+                log.debug({result: putResult}, `Added new file to cache: ${putResult.id}`);
             })
             .catch((error) => {
-                console.error(`Cache put failed: ${error}`);
+                log.error({err: error}, `Cache put failed for file: ${cachedFile._id}`);
             });
     });
 });

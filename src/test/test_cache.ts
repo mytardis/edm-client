@@ -13,6 +13,8 @@ import EDMFile from "../lib/file_tracking";
 
 import {settings} from "../lib/settings";
 
+import * as logger from "../lib/logger";
+const log = logger.log.child({'tags': ['test', 'test_cache']});
 
 describe("file watch cache", function () {
     let dataDir: string;
@@ -46,7 +48,7 @@ describe("file watch cache", function () {
         let cache = new EDMFileCache(dirToIngest);
         cache.addFile(doc)
             .then((success) => {
-                console.log(success);
+                log.debug({result: success});
                 return cache._db.get(doc._id);
             })
             .then((retrieved) => {
@@ -69,7 +71,7 @@ describe("file watch cache", function () {
         let cache = new EDMFileCache(dirToIngest);
         cache.addFile(file)
             .then((success) => {
-                console.log(success);
+                log.debug({result: success});
                 return cache.getEntry(file);
             })
             .then((retrieved) => {

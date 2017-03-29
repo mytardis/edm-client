@@ -5,6 +5,9 @@ import * as yargs from "yargs";
 import {EDM} from "./lib/main";
 import {settings} from "./lib/settings";
 
+import * as logger from "./lib/logger";
+const log = logger.log.child({'tags': ['app']});
+
 /**
  * begin fancy load message and timeout
  */
@@ -21,7 +24,7 @@ function startup() {
 
     setTimeout(function ():void {
         if (!loaded) {
-            console.log('problems starting up');
+            log.error('Problems starting up.');
             process.exit(1);
         }
     }, loadTimeout * 1000);
@@ -142,20 +145,22 @@ initArgs.token = getArg("t");
 
 settings.parseInitArgs(initArgs);
 
-let app = new EDM();
+const app = new EDM();
 
 switch (command) {
     case "upload":
-        console.log("Uploading files");
+        log.info({}, "Uploading files.");
         break;
     case "config":
+        // We want a raw JSON dump of settings here so we bypass the usual bunyan logging
         console.log(JSON.stringify(settings.conf, null, 2));
         break;
     case "service":
-        console.log("starting system service");
+        log.info({}, "Starting system service.");
         break;
     case "onReadable":
     default:
+        log.info({}, "Starting client.");
         app.start();
         break;
 }
