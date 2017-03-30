@@ -22,11 +22,15 @@ export const log = bunyan.createLogger({
 
         // bunyan-debug-stream output is more compact than bunyan-prettystream
         {
-            level: 'debug',
+            level: process.env.EDM_LOG_LEVEL || 'info',
             type: 'raw',
             stream: bunyanDebugStream({
                 basepath: __dirname,
                 forceColor: true,
+                    colors: {
+                        'info': 'grey',
+                        'error': ['red', 'bold']
+                    }
             })
         },
     ]

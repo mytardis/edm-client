@@ -95,7 +95,7 @@ export class TransferQueueManager extends events.EventEmitter  {
         // We use once events so we don't need to even call removeListener (since we
         // can't remove a specific anonymous method) - onUpdateProgress re-registers itself
         // as a one time event every time it's called.
-        this.method.on('start', (id, bytes, file_local_id) => this.onUpdateProgress(id, bytes, file_local_id));
+        this.method.on('start', (id, bytes, file_local_id) => this.onTransferStart(id, bytes, file_local_id));
         this.method.on('progress', (id, bytes, file_local_id) => this.onUpdateProgress(id, bytes, file_local_id));
         this.method.on('complete', (id, bytes, file_local_id) => this.onTransferComplete(id, bytes, file_local_id));
     }
@@ -147,6 +147,17 @@ export class TransferQueueManager extends events.EventEmitter  {
         );
     }
 
+    private onTransferStart(file_transfer_id: string, bytes_transferred: number, file_local_id: string) {
+        log.info({
+            event: 'start',
+            queue_id: this.queue_id,
+            file_transfer_id: file_transfer_id,
+            bytes_transferred: bytes_transferred,
+            file_local_id: file_local_id},
+            `Transfer started, file: ${file_local_id}, file_transfer_id: ${file_transfer_id}, queue_id: ${this.queue_id}, bytes_transferred: ${bytes_transferred}`);
+        this.onUpdateProgress(file_transfer_id, bytes_transferred, file_local_id);
+    }
+
     private onUpdateProgress(file_transfer_id: string, bytes_transferred: number, file_local_id: string) {
         log.debug({
             event: 'progress',
@@ -154,7 +165,7 @@ export class TransferQueueManager extends events.EventEmitter  {
             file_transfer_id: file_transfer_id,
             bytes_transferred: bytes_transferred,
             file_local_id: file_local_id},
-            `Transfer progress, file_transfer_id: ${file_transfer_id}, queue_id: ${this.queue_id}, bytes_transferred: ${bytes_transferred}}`);
+            `Transfer progress, file: ${file_local_id}, file_transfer_id: ${file_transfer_id}, queue_id: ${this.queue_id}, bytes_transferred: ${bytes_transferred}`);
 
         let cachedTransfer = {
             id: file_transfer_id,
@@ -201,13 +212,13 @@ export class TransferQueueManager extends events.EventEmitter  {
         //       transfers (in the case where the server is unable to verify itself).
         //       (Retries at Apollo client level ?
         //        Persist in PouchDB and periodically retry until server responds, then remove record ? )
-        log.debug({
+        log.info({
             event: 'complete',
             queue_id: this.queue_id,
             file_transfer_id: file_transfer_id,
             bytes_transferred: bytes_transferred,
             file_local_id: file_local_id},
-            `Transfer complete, file_transfer_id: ${file_transfer_id}, queue_id: ${this.queue_id}, bytes_transferred: ${bytes_transferred}}`);
+            `Transfer complete, file: ${file_local_id}, file_transfer_id: ${file_transfer_id}, queue_id: ${this.queue_id}, bytes_transferred: ${bytes_transferred}`);
 
         let cachedTransfer = {
             id: file_transfer_id,
