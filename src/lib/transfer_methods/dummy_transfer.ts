@@ -2,6 +2,9 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import {TransferMethod} from './transfer_method';
 
+import * as logger from "../logger";
+const log = logger.log.child({'tags': ['transfer_method', 'dummy_transfer']});
+
 export class DummyTransfer extends TransferMethod {
     total_time: number = 500;
     total_bytes: number = 1024;
@@ -37,21 +40,27 @@ export class DummyTransfer extends TransferMethod {
      * eventually giving up and emitting a 'fail' event.
      *
      * @param filepath
-     * @param source_basepath
+     * @param dest_basepath
      * @param transfer_id
      * @param file_local_id
      * @param doneCallback
      */
 
     transfer(filepath: string,
-             source_basepath: string,
+             dest_basepath: string,
              transfer_id: string,
              file_local_id: string,
              doneCallback: Function) {
 
         this.emit('start', transfer_id, 0, file_local_id);
 
-        console.info(`Pretending to transfer: ${filepath} -> ${this.getDestinationPath(filepath, source_basepath)}`);
+        log.debug({
+            options: this.options,
+            filepath: filepath,
+            source_basepath: dest_basepath,
+            transfer_id: transfer_id,
+            file_local_id: file_local_id
+        }, `Pretending to transfer: ${filepath} -> ${this.getDestinationPath(filepath, dest_basepath)}`);
 
         // emit a bunch of progress events with increasing delays before they fire
         const byte_increment = Math.floor((this.percent_increment / 100) * this.total_bytes);
@@ -61,7 +70,8 @@ export class DummyTransfer extends TransferMethod {
                 this.emit('progress', transfer_id, bytes, file_local_id);
 
                 if (this.simulate_error_at != null && bytes >= this.simulate_error_at) {
-                    let error = new Error("Something went wrong, transfer incomplete.");
+                    let error = new Error('Something went wrong, transfer incomplete.');
+                    log.error({err: error}, 'Transfer failed.')
                     doneCallback();
                     this.emit('fail', transfer_id, bytes, file_local_id, error);
                 }

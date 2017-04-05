@@ -15,8 +15,11 @@ npm test
 ```
 # npm start run
 cd build
-node app run -c ../edm-settings.json
+EDM_LOG_LEVEL=debug node app run -c ../edm-settings.json
 ```
+
+The log level can be set via the `EDM_LOG_LEVEL` environment variable 
+(eg trace, debug, info, warn, error, fatal).
 
 ## Packaging standalone executable
 ```

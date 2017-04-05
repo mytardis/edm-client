@@ -18,6 +18,8 @@ import {EDMConnection} from "../edmKit/connection";
 import EDMFile from "../lib/file_tracking";
 import {EDMQueries} from "../lib/queries";
 
+import * as logger from "../lib/logger";
+const log = logger.log.child({'tags': ['test', 'test_service']});
 
 describe("A mock EDM backend service", function () {
     let mutation_id = 'a44f9922-ebae-4864-ae46-678efa394e7d';
@@ -72,7 +74,7 @@ describe("A mock EDM backend service", function () {
             }
         };
 
-        let edmBackend = nock('http://localhost:4000').log(console.log)
+        let edmBackend = nock('http://localhost:4000') //.log(log.debug)
             .defaultReplyHeaders({
                 'Content-Type': 'application/json; charset=utf-8'
             })
@@ -121,7 +123,7 @@ describe("A mock EDM backend service", function () {
                 done();
             })
             .catch((error) => {
-                console.error(`Request error: ${error}`)
+                log.error({err: error}, `GQL request error registering file: ${file._id}`);
             });
     });
 });

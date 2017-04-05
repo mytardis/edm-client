@@ -12,14 +12,13 @@ import gql from 'graphql-tag';
 import {ObservableQuery} from "apollo-client";
 import {CronJob} from 'cron';
 
-import {EDMConnection} from "../edmKit/connection";
 import {settings} from "./settings";
+import {EDMConnection} from "../edmKit/connection";
 import {EDMFileWatcher} from "./file_watcher";
 import {EDMQueries} from "./queries";
 
-function print_json(data) {
-    console.log(JSON.stringify(data, null, 2))
-}
+import * as logger from "./logger";
+const log = logger.log.child({'tags': ['main']});
 
 export class EDM {
     static pingBackendInterval = 10000;
@@ -39,8 +38,6 @@ export class EDM {
         backendQuery.subscribe({
             next: (value) => {
                 let clientInfo = value.data.currentClient;
-                print_json(settings);
-                print_json(clientInfo.sources);
                 this.stop();
                 if (!settings.conf.appSettings.ignoreServerConfig) {
                     settings.setConfig({
@@ -48,13 +45,13 @@ export class EDM {
                         hosts: clientInfo.hosts} as Settings);
                 }
                 this.setUp();
-                print_json(settings.conf);
+                log.debug({settings: settings, currentClient: clientInfo}, "Received settings.");
             },
             error: (error) => {
-                console.log("configpoll error " + error);
+                log.error({'err': error}, "configpoll error " + error);
                 // TODO: restart startConfigPolling after a total_time
             },
-            complete: () => {console.log("configpoll complete")}});
+            complete: () => {log.info("configpoll complete")}});
         backendQuery.startPolling(EDM.pingBackendInterval);
     }
 
@@ -89,13 +86,13 @@ export class EDM {
                     watcher.walk(job);
                 } catch (e) {
                     job.stop();
-                    console.error(`Error in watcher on ${source.basepath}`);
+                    log.error({'err': e }, `Error in watcher on ${source.basepath}`);
                 }
             },
             start: true,
         });
         this.tasks.push(job);
-        console.log(`Starting file watcher on ${source.basepath}`)
+        log.info({}, `Starting file watcher on ${source.basepath}`)
     }
 
     private stop() {

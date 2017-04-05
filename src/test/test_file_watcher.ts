@@ -13,6 +13,9 @@ import EDMFile from "../lib/file_tracking";
 import {EDMFileCache} from "../lib/cache";
 import {EDMQueries} from "../lib/queries";
 
+import * as logger from "../lib/logger";
+const log = logger.log.child({'tags': ['test', 'test_file_watcher']});
+
 describe("file watcher", function () {
     let dataDir: string;
     let dirToIngest: string;
@@ -22,7 +25,7 @@ describe("file watcher", function () {
     let replyData: any;
 
     function prepareForGqlRequest(times: number = 1) {
-        edmBackend = nock('http://localhost:4000').log(console.log)
+        edmBackend = nock('http://localhost:4000') //.log(log.debug)
             .defaultReplyHeaders({
                 'Content-Type': 'application/json; charset=utf-8'
             })
@@ -117,11 +120,12 @@ describe("file watcher", function () {
                 const expected = EDMQueries.unpackFileTransferResponse(replyData.data.createOrUpdateFile.file.file_transfers);
                 expect(doc.transfers[0].status).to.equal(expected[0].status);
                 expect(doc.transfers[1].status).to.equal(expected[1].status);
-                console.log(doc);
+                log.debug({result: doc}, `Successfully cached and registered ${doc._id}`);
                 done();
             })
             .catch((error) => {
-                console.error(error);
+                log.error({err: error, file: edmFile},
+                        `Failed to register and cache file: ${edmFile._id} (${edmFile.remote_id})`);
                 done(error);
             });
     });
@@ -130,21 +134,18 @@ describe("file watcher", function () {
         prepareEnv();
         prepareForGqlRequest(2);
 
-        console.log(settings.conf.appSettings.dataDir);
-        console.log(dirToIngest);
         let watcher = new EDMFileWatcher({basepath: dirToIngest});
         watcher.cache = new EDMFileCache('testing');
         watcher.endWalk = () => {
             const numfiles = watcher.lastWalkItems.length - 2;
             expect(numfiles).to.be.equal(1);
             watcher.cache._db.allDocs().then((result) => {
-                console.log(`allDocs: ${JSON.stringify(result)}`);
-                console.log(`numfiles: ${numfiles}`);
+                log.debug({result: result}, `Cached ${numfiles} file records.`);
                 // db adds aren't always complete yet, can be improved
                 expect(result.total_rows).to.be.lessThan(numfiles+1);
                 done();
             }).catch((error) => {
-                console.error(error);
+                log.error({err: error}, `Failed to access cache.`);
                 done(error);
             });
         };

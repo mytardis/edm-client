@@ -15,6 +15,9 @@ import EDMFile from './file_tracking';
 import {settings} from "./settings";
 import {TransferQueuePool} from "./transfer_queue";
 
+import * as logger from "./logger";
+const log = logger.log.child({'tags': ['cache']});
+
 export class EDMFileCache {
     readonly _db: any; // PouchDB.Database<EDMCachedFile>;
     private changes: any;
@@ -32,7 +35,7 @@ export class EDMFileCache {
         this.changes = this._db.changes({live: true, include_docs: true})
             .on('change', (change) => {
 
-                // console.log(`PouchDB on change event: ${this.basepath}\n${JSON.stringify(change)}\n`);
+                log.debug({event: 'change', result: change}, `PouchDB on change event: ${change.id}`);
 
                 let cachedFile = change.doc as EDMCachedFile;
                 if (!change.deleted && cachedFile.transfers != null) {
@@ -40,11 +43,11 @@ export class EDMFileCache {
                 }
             })
             .on('complete', (info) => {
-                console.info(info);
-                console.log("stopped listening for changes");
+                log.info({event: 'complete', result: info},
+                    "PouchDB changes event 'complete'. Stopped listening for changes.");
             })
             .on('error', (error) => {
-                console.error(`pouchdb changes handling error: ${error}`)
+                log.error({event: 'error', err: error}, `PouchDB changes event 'error'.`)
             });
     }
 
@@ -89,7 +92,7 @@ export class EDMFileCache {
                 if (TransferQueuePool.isFull(xfer.destination_id)) {
                     // TODO: How do we ensure jobs that fail to _queue (backpressure or real failure) get re-queued later ?
 
-                    console.error(`[Not implemented]: TransferQueue ${xfer.destination_id} is full (maximum allowed queued tasks exceeded).`+
+                    log.error(`[Not implemented]: TransferQueue ${xfer.destination_id} is full (maximum allowed queued tasks exceeded).`+
                                   `FileTransfer ${xfer.id} was not queued.`);
                     continue;
                 }
@@ -97,16 +100,16 @@ export class EDMFileCache {
                 TransferQueuePool.queueTransfer(xfer_job)
                     .then((result) => {
                         // update PouchDB with file transfer status = queued
-                        console.log(`file_transfer updated: ${JSON.stringify(result)}`);
+                        log.info({result: result}, `file_transfer updated: ${xfer.id}`);
 
                         if (result['queue_saturated']) {
-                            console.error(`[Not implemented]: TransferQueues ${xfer.destination_id} is now saturated.`);
+                            log.error({result: result}, `[Not implemented]: TransferQueues ${xfer.destination_id} is now saturated.`);
                         }
                     })
                     .catch((error) => {
                         // we may catch a rejected Promise here if the job cannot be queued at this time
                         // eg, a network failure notifying the server
-                        console.error(`ERROR: ${error}`);
+                        log.error({err: error}, `Failed to queue file_transfer: ${xfer.id}`);
                     });
             }
         }

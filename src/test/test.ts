@@ -11,6 +11,9 @@ import {EDM} from "../lib/main";
 import * as yargs from "yargs";
 import {settings, EDMSettings} from "../lib/settings";
 
+import * as logger from "../lib/logger";
+const log = logger.log.child({'tags': ['test']});
+
 describe("testing tests", function () {
     it("should be ok", () => {
         assert.ok(true, "This shouldn't fail");
@@ -60,7 +63,7 @@ describe("run command line program", function() {
 
     it("should output configuration when called with config", function (done) {
         ensure_cwd();
-        console.log(settings);
+        log.debug({settings: settings});
         // write config file
         fs.writeFileSync("test-edm-settings.json", JSON.stringify(
             {

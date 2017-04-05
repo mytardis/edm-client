@@ -1,5 +1,6 @@
 /// <reference path="../types.d.ts" />
 
+import * as events from 'events';
 import * as fs from "fs-extra";
 import * as path from "path";
 
@@ -7,14 +8,17 @@ import * as _ from "lodash";
 
 var ospath = require("ospath");
 
+import * as logger from "./logger";
+const log = logger.log.child({'tags': ['settings']});
 
-export class EDMSettings {
+export class EDMSettings extends events.EventEmitter {
     static app_name: string = "Express Data Mover";
     static default_config_file_name: string = "edm-settings.json";
 
     conf: Settings = {};
 
     constructor() {
+        super();
         this.conf.appSettings = <AppSettings>{};
         this.conf.serverSettings = {};
     }
@@ -41,8 +45,8 @@ export class EDMSettings {
                 configuration = JSON.parse(configFileBuffer.toString());
                 this.setConfig(configuration as Settings);
             } catch (error) {
-                console.error(
-                    `error: ${error} with config file at ${configFilePath}`);
+                log.error({err: error},
+                   `Error reading/parsing config file: ${configFilePath}`);
                 process.exit(1);
             }
         }
@@ -67,7 +71,7 @@ export class EDMSettings {
                 this.readConfigFile(path.normalize(initArgs.configFilePath));
             }
             else {
-                console.log("bad config file path: " + initArgs.configFilePath);
+                log.error({path: initArgs.configFilePath}, `Config file does not exist: ${initArgs.configFilePath}`);
                 process.exit(1);
             }
         else {
@@ -90,6 +94,12 @@ export class EDMSettings {
         if (initArgs.token != null) {
             this.conf.serverSettings.token = initArgs.token;
         }
+
+        // We call this here since we need to wait until settings have been
+        // created before allowing any loggers to attach to the settings 'ready' event.
+        logger.init_settings_dependent_loggers();
+
+        this.emit('ready');
     }
 
     private ensureDataDirExists() {

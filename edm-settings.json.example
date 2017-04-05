@@ -51,5 +51,13 @@
     "token": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJDbGllbnQ6NzUyYjI5YjctODQyNC00YWYzLTgzNjQtNTg1MTkzZDY5MmRjIiwiZXhwIjoxNDgyNTMzODYwLCJpYXQiOjE0Nzk5NDE4NjAsImlzcyI6ImVkbS1iYWNrZW5kIiwianRpIjoiZTdkZTE3ZTYtNzRiNi00MzUzLTk3M2UtM2RlNWI4ZDE4M2NkIiwicGVtIjp7fSwic3ViIjoiQ2xpZW50Ojc1MmIyOWI3LTg0MjQtNGFmMy04MzY0LTU4NTE5M2Q2OTJkYyIsInR5cCI6InRva2VuIn0.DcL_yAnb2PAtZPSSFZ9VTCuwug-EIXuzlvjFc3ugFlRIi2BtKmA9xh8YwiE-eva2WixZ14kX2AlCVPdpP2rXjA"
   },
 
-  "appSettings" : {}
+  "appSettings" : {
+    "logging": {
+      "loggly": {
+        "token": "7a6a214a-a7ad-a4ad-aea2-aca6afa3a3af",
+        "subdomain": "edm-client",
+        "bufferLength": 1
+      }
+    }
+  }
 }

@@ -11,6 +11,9 @@ import {EDMFileCache} from "./cache";
 import {EDMQueries} from "./queries";
 import {LocalCache} from "./cache";
 
+import * as logger from "./logger";
+const log = logger.log.child({'tags': ['file_watcher']});
+
 export class EDMFileWatcher {
     source: EDMSource;
     cache: EDMFileCache;
@@ -53,11 +56,11 @@ export class EDMFileWatcher {
 
     handleFile(file) {
         if (file == null) {
-            console.log('file is null');
+            log.debug('Skipping: file is null');
             return;
         }
         if (file.path === this.source.basepath) {
-            console.log("handleFile: skipping handling basepath '.' file")
+            log.debug("Skipping: file == basepath ('.')");
             return;
         }
 
@@ -74,23 +77,27 @@ export class EDMFileWatcher {
                     //     this.cache.queuePendingTransfers(cached);
                     // })
                     .catch((error) => {
-                        console.error(`Failed to register and cache: ${JSON.stringify(edmFile)} - ${error}`);
+                        log.error({err: error, file: edmFile, cached: cached},
+                            `Failed to register and cache file: ${edmFile._id} (${edmFile.remote_id})`);
                     })
             }
-            console.log(`${cached._id} is in cache (transfers: ${JSON.stringify(cached.transfers)})`);
+            log.debug({file: edmFile, cached: cached}, `File ${edmFile._id} is in local cache: ${cached._id}.`);
         }).catch((error) => {
             if (error.name === "not_found") {
                 // new file (unknown to client, may be known to server if local cache was cleared)
-                this.registerAndCache(edmFile);
+                this.registerAndCache(edmFile).catch((error) => {
+                    log.error({err: error, file: edmFile},
+                        `Failed to register and cache file: ${edmFile._id} (${edmFile.remote_id})`);
+                });
             } else {
-                console.error(error);
+                log.error({err: error, file: edmFile},
+                    `Error checking local cache: ${edmFile._id} (${edmFile.remote_id})`);
             }
         });
     }
 
     endWalk() {
-        console.info(this.lastWalkItems);
-        console.log("finished one walk");
+        log.debug({lastWalkItems: this.lastWalkItems}, "Finished one walk.");
     }
 
     private statsHaveChanged(file: EDMFile, cachedFile: EDMCachedFile) {
@@ -123,23 +130,24 @@ export class EDMFileWatcher {
                 const transfers: GQLEdgeList = _.get(backendResponse.data.createOrUpdateFile.file, 'file_transfers', null);
                 doc.transfers = EDMQueries.unpackFileTransferResponse(transfers);
                 this.cache.addFile(doc).catch((error) => {
-                    console.error(`Cache put failed: ${error}`);
+                    log.error({err: error}, `Cache put failed: ${doc._id}`);
                 });
                 return backendResponse;
-            })
-            .catch((error) => {
-                // We get the main GQL error from the server in error.message
-                // and a list in the array errors.graphQLErrors
-                console.error(`ERROR: ${error}`);
             });
+            // .catch((error) => {
+            //     // We get the main GQL error from the server in error.message
+            //     // and a list in the array errors.graphQLErrors
+            //     log.error({err: error, file: localFile, source: this.source},
+            //                 `Failed to register and cache file: ${localFile._id} (${localFile.remote_id})`);
+            // });
     }
 
     private handleError(error: any, job?: any) {
-        console.error(error);
-        if (error.code == "ENOENT" &&
+        log.error({err: error}, 'Error walking files.');
+        if (error.code == 'ENOENT' &&
             error.path === path.resolve(this.source.basepath))
             if (job != null) {
-                console.error("stopping cron job");
+                log.error({err: error}, 'Stopping cron job.');
                 job.stop();
             }
     }
