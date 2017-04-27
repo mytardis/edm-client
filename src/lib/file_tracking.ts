@@ -53,7 +53,8 @@ export default class EDMFile {
     }
 
     updateStats() {
-        this.stats = fs.statSync(path.resolve(this.source.basepath, this.filepath));
+        this.stats = fs.lstatSync(
+            path.resolve(this.source.basepath, this.filepath));
     }
 
     getPouchDocument(): EDMCachedFile {

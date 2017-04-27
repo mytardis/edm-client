@@ -11,7 +11,7 @@ export default class FileTransferJob {
                 readonly file_local_id: string) { }
 
     public getDestinationHost(): EDMDestinationHost {
-        let host_id = settings.getDestination(this.destination_id).host_id;
+        let host_id = settings.getDestination(this.destination_id).hostId;
         let destinationHost = settings.getHost(host_id);
         return destinationHost;
     }

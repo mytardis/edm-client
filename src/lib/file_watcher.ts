@@ -33,6 +33,7 @@ export class EDMFileWatcher {
     }
 
     walk(job?: any) {
+        log.debug({}, `walking now, on source: ${this.source}`)
         // using https://github.com/jprichardson/node-klaw
         const walker = klaw(this.source.basepath);
         const items = [];

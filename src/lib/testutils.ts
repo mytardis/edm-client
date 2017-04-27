@@ -15,8 +15,23 @@ export function getTmpDirPath(prefix='edm_test') {
 
 export function createNewTmpfile(basepath, data='some data\n', prefix='tmp-'): string {
     let tmpobj = tmp.fileSync({ dir: basepath, prefix: prefix });
-    fs.outputFileSync(tmpobj.name, data, function (error) { log.error({err: error}, `Error writing file: ${tmpobj.name}`) });
+    try {
+        fs.outputFileSync(tmpobj.name, data);
+    } catch (error) {
+        log.error({err: error}, `Error writing file: ${tmpobj.name}`);
+    }
     return tmpobj.name;
+}
+
+export function createNewTmplink(basepath, link_dest, prefix='tmp-') {
+    let tmplink = tmp.tmpNameSync({dir: basepath, prefix: prefix});
+    try {
+        fs.ensureSymlinkSync(link_dest, tmplink);
+    } catch (error) {
+        log.error({err: error, link_dest: link_dest, tmplink: tmplink},
+            `Error creating link: ${tmplink}`);
+    }
+    return tmplink;
 }
 
 export function randomString() {
@@ -30,14 +45,14 @@ export function setupSettings(dataDir = null) {
 
     mockObjs.host = {
         id: randomString(),
-        transfer_method: "dummy",
+        transferMethod: "dummy",
         settings: {}
     } as EDMDestinationHost;
 
     mockObjs.destination = {
         id: randomString(),
-        host_id: mockObjs.host.id,
-        location: getTmpDirPath('edmtest_destination_'),
+        hostId: mockObjs.host.id,
+        base: getTmpDirPath('edmtest_destination_'),
         exclusions: []
     } as EDMDestination;
 

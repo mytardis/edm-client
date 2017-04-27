@@ -10,30 +10,38 @@ prettyStdOut.pipe(process.stdout);
 // const prettyStdErr = new PrettyStream();
 // prettyStdErr.pipe(process.stderr);
 
-export const log = bunyan.createLogger({
-    name: 'edm-client',
-    serializers: bunyanDebugStream.serializers,  // {err: bunyan.stdSerializers.err},
-    streams: [
-        // {
-        //     level: 'debug',
-        //     type: 'raw',
-        //     stream: prettyStdOut
-        // },
-
-        // bunyan-debug-stream output is more compact than bunyan-prettystream
+function get_stream() {
+    if (process.env.EDM_LOG_LEVEL == 'debug') {
+        return [
         {
+            level: 'debug',
+            type: 'raw',
+            stream: prettyStdOut
+        }]
+    } else {
+        return [{
             level: process.env.EDM_LOG_LEVEL || 'info',
             type: 'raw',
             stream: bunyanDebugStream({
                 basepath: __dirname,
                 forceColor: true,
-                    colors: {
-                        'info': 'grey',
-                        'error': ['red', 'bold']
-                    }
+                colors: {
+                    'info': 'grey',
+                    'error': ['red', 'bold']
+                }
             })
-        },
+        }
     ]
+    }
+}
+
+export const log = bunyan.createLogger({
+    name: 'edm-client',
+    serializers: bunyanDebugStream.serializers,  // {err: bunyan.stdSerializers.err},
+    streams: get_stream()
+
+        // bunyan-debug-stream output is more compact than bunyan-prettystream
+
 });
 
 export function init_settings_dependent_loggers() {

@@ -85,9 +85,9 @@ export class TransferQueueManager extends events.EventEmitter  {
 
     private initTransferMethod(destinationHost: EDMDestinationHost, destination: EDMDestination) {
         if (this.method != null) return;
-        let method_name = destinationHost.transfer_method;
-        let options = destinationHost.settings;
-        options.destBasePath = destination.location;
+        let method_name = destinationHost.transferMethod;
+        let options = _.clone(destinationHost.settings);
+        options.destBasePath = destination.base;
         this.method = new (TransferMethodPlugins.getMethod(method_name))(options);
 
         // These must be lambdas to preserve context of 'this'.
@@ -95,6 +95,7 @@ export class TransferQueueManager extends events.EventEmitter  {
         // We use once events so we don't need to even call removeListener (since we
         // can't remove a specific anonymous method) - onUpdateProgress re-registers itself
         // as a one time event every time it's called.
+        // TODO: handle 'fail' event
         this.method.on('start', (id, bytes, file_local_id) => this.onTransferStart(id, bytes, file_local_id));
         this.method.on('progress', (id, bytes, file_local_id) => this.onUpdateProgress(id, bytes, file_local_id));
         this.method.on('complete', (id, bytes, file_local_id) => this.onTransferComplete(id, bytes, file_local_id));

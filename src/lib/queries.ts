@@ -6,7 +6,7 @@ import {MutationOptions} from "apollo-client";
 import {ApolloQueryResult} from "apollo-client";
 import {ObservableQuery} from "apollo-client";
 
-import {settings} from "../lib/settings";
+import {settings} from "./settings";
 import {EDMConnection} from "../edmKit/connection";
 import EDMFile from "./file_tracking";
 
@@ -32,18 +32,22 @@ export class EDMQueries {
                               currentClient {
                                 id
                                 attributes
-                                  sources {
+                                sources {
                                   id
                                   name
                                   settings
+                                  basepath
+                                  checkMethod
+                                  cronTime
                                   destinations {
                                     id
                                     base
-                                    host { id }
+                                    hostId
                                   }
                                 }
                                 hosts {
                                   id
+                                  transferMethod
                                   settings
                                   name
                                 }

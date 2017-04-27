@@ -125,13 +125,13 @@ export class EDMSettings extends events.EventEmitter {
     }
 
     public getSource(source_id: string): EDMSource {
-        let source: EDMSource =  _.find(this.conf.sources, {"id": source_id });
+        let source: EDMSource = _.find(this.conf.sources, {"id": source_id });
         if (source == null) throw Error(`Source not found: ${source_id}`);
         return source;
     }
 
     public getHost(host_id: string): EDMDestinationHost {
-        let host: EDMDestinationHost =  _.find(this.conf.hosts, {"id": host_id });
+        let host: EDMDestinationHost = _.find(this.conf.hosts, {"id": host_id });
         if (host == null) throw Error(`Host not found: ${host_id}`);
         return host;
     }

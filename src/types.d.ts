@@ -79,14 +79,14 @@ interface EDMSource {
 
 interface EDMDestination {
     id: string;
-    host_id: string;
-    location: string;
+    hostId: string;
+    base: string;
     exclusions?: string[];
 }
 
 interface EDMDestinationHost {
     id: string;
-    transfer_method: TransferMethodName;
+    transferMethod: TransferMethodName;
     settings?: any;
 }
 
