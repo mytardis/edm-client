@@ -82,7 +82,6 @@ describe("Local transfer method ", function() {
             expect(fs.readlinkSync(link_loc)).to.equal(source_file);
             expect(id).to.equal('a_file_transfer_id2');
             expect(local_id).to.equal('a_file_local_id_1234');
-            expect(_size).to.equal(100);
             done();
         });
 
