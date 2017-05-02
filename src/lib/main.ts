@@ -61,6 +61,7 @@ export class EDM {
 
     setUp() {
         for (let source of settings.conf.sources) {
+            log.debug(source, 'setting up source');
             switch(source.checkMethod) {
                 case "cron":
                     this.startWatcher(source);
@@ -78,6 +79,7 @@ export class EDM {
     private startWatcher(source: any) {
         const watcher = new EDMFileWatcher(source);
         this.watchers.push(watcher);
+        log.debug(source, 'About to start cronjob for this source');
         const job = new CronJob({
             cronTime: source.cronTime,
             context: this,
@@ -100,6 +102,7 @@ export class EDM {
         this.watchers = [];
         if (this.tasks != null) {
             for (let task of this.tasks) {
+                log.debug({}, 'stopping a job');
                 task.stop();
             }
         }
