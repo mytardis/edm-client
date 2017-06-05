@@ -117,13 +117,16 @@ describe("A mock EDM backend service", function () {
         } as EDMSource;
 
         let file = new EDMFile(source, path.basename(tmpFile));
-        let promise = EDMQueries.registerFileWithServer(file, 'test source', mutation_id)
+        let promise = EDMQueries.registerFileWithServer(
+            file, 'test source', mutation_id)
             .then((value) => {
-                expect(JSON.stringify(value)).to.equal(JSON.stringify(expectedReplyData));
+                expect(JSON.stringify(value)).to.equal(
+                    JSON.stringify(expectedReplyData));
                 done();
             })
             .catch((error) => {
-                log.error({err: error}, `GQL request error registering file: ${file._id}`);
+                log.error({err: error},
+                    `GQL request error registering file: ${file._id}`);
             });
     });
 });

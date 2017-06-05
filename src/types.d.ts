@@ -82,6 +82,9 @@ interface EDMDestination {
     hostId: string;
     base: string;
     exclusions?: string[];
+    sourceId?: string,
+    source?: EDMSource,
+    host?: EDMDestinationHost;
 }
 
 interface EDMDestinationHost {

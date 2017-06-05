@@ -5,6 +5,8 @@ import EDMFile from "../lib/file_tracking";
 import {DummyTransfer} from "../lib/transfer_methods/dummy_transfer";
 
 import * as logger from "../lib/logger";
+import FileTransferJob from "../lib/file_transfer_job";
+
 const log = logger.log.child({'tags': ['test', 'test_transfer_method']});
 
 describe("A transfer method ", function () {
@@ -33,16 +35,25 @@ describe("A transfer method ", function () {
                 `Huzzah ${id} completed !`);
             done();
         }
-
-        let dummy = new DummyTransfer({destBasePath: "/a/destination/path"});
+        let dummy = new DummyTransfer(<EDMDestination>{
+            base: "/a/destination/path",
+            source: <EDMSource>{
+                id: 'source_id',
+                basepath: '/fake/basepath',
+            },
+        });
         dummy.on('progress', logProgress);
         dummy.on('complete', logComplete);
-
-        dummy.transfer(
-            "/some/fake/absolute/filepath",
+/*            "/some/fake/absolute/filepath",
             file_transfer_id,
             EDMFile.generateID("/some/fake/absolute", "filepath"),
             'bla',
+*/
+        dummy.transfer(<FileTransferJob>{
+            fileTransferId: 'a_file_transfer_id',
+            sourceRelPath: 'fake/relative/path.txt',
+            destRelPath: 'fake/relative/destination/path.txt',
+            },
             _.noop
         );
     });

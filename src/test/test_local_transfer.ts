@@ -12,6 +12,8 @@ import {getTmpDirPath} from "../lib/testutils";
 import * as _ from "lodash";
 import * as fs from 'fs-extra';
 import * as tmp from 'tmp';
+import FileTransferJob from "../lib/file_transfer_job";
+
 const path = require('path');
 
 import {LocalTransfer} from "../lib/transfer_methods/local_transfer";
@@ -27,22 +29,29 @@ describe("Local transfer method ", function() {
         let source_file = createNewTmpfile(source_dir, '16_bytes_content');
         let destination_base_path = getTmpDirPath();
         let destination_rel_path = path.basename(source_file);
-        let options = <TransferMethodOptions>{
-            destBasePath: destination_base_path,
+        let source = <EDMSource>{
+            id: 'a_source_id',
+            name: 'test source',
+            basepath: source_dir,
         };
-        let localTransfer = new LocalTransfer(options);
+        let destination = <EDMDestination>{
+            base: destination_base_path,
+            source: source,
+        };
+        let localTransfer = new LocalTransfer(destination);
+        let transferJob = <FileTransferJob>{
+            fileTransferId: 'a_file_transfer_id',
+            sourceRelPath: path.basename(source_file),
+            destRelPath: path.basename(source_file),
+        };
         localTransfer.transfer(
-            source_file,
-            destination_rel_path,
-            'a_file_transfer_id',
-            'a_file_local_id_123',
+            transferJob,
             _.noop
         );
         localTransfer.on('complete', (id, _size, local_id) => {
             expect(path.join(destination_base_path,
                 destination_rel_path)).to.be.a.file().and.equal(source_file);
             expect(id).to.equal('a_file_transfer_id');
-            expect(local_id).to.equal('a_file_local_id_123');
             expect(_size).to.equal(16);
             done();
         });
@@ -61,15 +70,22 @@ describe("Local transfer method ", function() {
         let destination_base_path = getTmpDirPath();
         let destination_rel_path = path.basename(source_file);
         let destination_link_rel_path = path.basename(source_link);
-        let options = <TransferMethodOptions>{
-            destBasePath: destination_base_path,
+        let source = <EDMSource>{
+            id: 'a_source_id',
+            basepath: source_dir,
         };
-        let localTransfer = new LocalTransfer(options);
+        let destination = <EDMDestination>{
+            base: destination_base_path,
+            source: source,
+        };
+        let localTransfer = new LocalTransfer(destination);
+        let transferJob = <FileTransferJob>{
+            fileTransferId: 'a_file_transfer_id2',
+            sourceRelPath: path.basename(source_link),
+            destRelPath: path.basename(source_link),
+        };
         localTransfer.transfer(
-            source_link,
-            destination_link_rel_path,
-            'a_file_transfer_id2',
-            'a_file_local_id_1234',
+            transferJob,
             _.noop
         );
         localTransfer.on('complete', (id, _size, local_id) => {
@@ -81,7 +97,6 @@ describe("Local transfer method ", function() {
             expect(fs.lstatSync(link_loc).isSymbolicLink()).to.be.true;
             expect(fs.readlinkSync(link_loc)).to.equal(source_file);
             expect(id).to.equal('a_file_transfer_id2');
-            expect(local_id).to.equal('a_file_local_id_1234');
             done();
         });
 
@@ -101,32 +116,36 @@ describe("Local transfer method ", function() {
             fs.removeSync(destination_file_full_path);
         });
 
-        let options = <TransferMethodOptions>{
-            destBasePath: destination_base_path,
+        let source = <EDMSource>{
+            id: 'a_source_id',
+            basepath: source_dir,
         };
-        let localTransfer = new LocalTransfer(options);
+        let destination = <EDMDestination>{
+            base: destination_base_path,
+            source: source,
+        };
+        let localTransfer = new LocalTransfer(destination);
+        let transferJob = <FileTransferJob>{
+            fileTransferId: 'a_file_transfer_id',
+            sourceRelPath: path.basename(source_file),
+            destRelPath: destination_rel_path,
+        };
         localTransfer.transfer(
-            source_file,
-            destination_rel_path,
-            'a_file_transfer_id',
-            'a_file_local_id_123',
+            transferJob,
             _.noop
         );
-
-        localTransfer.on('fail', (id, _null, local_id, error) => {
+        localTransfer.on('fail', (id, _null, error) => {
             expect(error.toString()).to.contain(
                 `${destination_file_full_path} already exists`);
             expect(destination_file_full_path).to.be.a.file()
                 .with.content('16_bytes_content');
             expect(id).to.equal('a_file_transfer_id');
-            expect(local_id).to.equal('a_file_local_id_123');
             done();
         });
         localTransfer.on('complete', (id, _size, local_id) => {
             expect(destination_file_full_path).to.be.a.file()
                 .with.content('16_bytes_content');
             expect(id).to.equal('a_file_transfer_id');
-            expect(local_id).to.equal('a_file_local_id_123');
             done();
         });
     });

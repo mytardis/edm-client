@@ -5,14 +5,21 @@ export default class FileTransferJob {
     //method: TransferMethodName;
     //settings: any;
 
-    constructor(readonly file_transfer_id: string,
-                readonly source_id: string,
-                readonly destination_id: string,
-                readonly file_local_id: string) { }
+    constructor(
+        readonly fileTransferId: string,
+        // readonly source: EDMSource,
+        readonly sourceRelPath: string,
+        // readonly destination: EDMDestination,
+        readonly destRelPath: string,
+        destMetadata?: any
 
-    public getDestinationHost(): EDMDestinationHost {
-        let host_id = settings.getDestination(this.destination_id).hostId;
-        let destinationHost = settings.getHost(host_id);
-        return destinationHost;
-    }
+        // readonly source_id: string,
+        // readonly destination_id: string,
+        // readonly source_filepath: string
+    ) { }
+
+    // public getDestinationHost(): EDMDestinationHost {
+    //     let host_id = settings.getDestination(this.destination_id).hostId;
+    //     return settings.getHost(host_id);
+    // }
 }

@@ -1,4 +1,6 @@
-﻿import * as path from "path";
+﻿import 'source-map-support/register';
+
+import * as path from "path";
 
 import * as yargs from "yargs";
 
@@ -70,6 +72,7 @@ function startup() {
  */
 
 let args: yargs.Argv = yargs.usage("Usage: edm-client [options] action")
+    .env('EDM_CLIENT')
     .command('run', 'Run foreground service according to existing settings')
     .command('onReadable', 'Start system service')
     .command('stop', 'Stop system service')

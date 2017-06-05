@@ -94,7 +94,7 @@ describe("file watcher", function () {
                 }
             }
         }
-    };
+    }
 
     afterEach("cleanup after each test", () => {
         nock.cleanAll();
@@ -117,10 +117,12 @@ describe("file watcher", function () {
             .then((backendResponse) => {
                 return watcher.cache.getEntry(edmFile);
             }).then((doc) => {
-                const expected = EDMQueries.unpackFileTransferResponse(replyData.data.createOrUpdateFile.file.file_transfers);
+                const expected = EDMQueries.unpackFileTransferResponse(
+                    replyData.data.createOrUpdateFile.file.file_transfers);
                 expect(doc.transfers[0].status).to.equal(expected[0].status);
                 expect(doc.transfers[1].status).to.equal(expected[1].status);
-                log.debug({result: doc}, `Successfully cached and registered ${doc._id}`);
+                log.debug({result: doc},
+                    `Successfully cached and registered ${doc._id}`);
                 done();
             })
             .catch((error) => {

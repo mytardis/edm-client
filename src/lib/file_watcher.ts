@@ -119,8 +119,9 @@ export class EDMFileWatcher {
     //     return _.filter(cachedRecord.transfers, {transfer_status: 'new' as TransferStatus});
     // }
 
-    public registerAndCache(localFile: EDMFile, cachedRecord?: EDMCachedFile): Promise<ApolloQueryResult<any>> {
-        let s = this.source;
+    public registerAndCache(localFile: EDMFile, cachedRecord?: EDMCachedFile)
+    : Promise<ApolloQueryResult<any>> {
+        // let s = this.source;
         return EDMQueries.registerFileWithServer(localFile, this.source.name)
             .then((backendResponse) => {
                 let doc: EDMCachedFile = localFile.getPouchDocument();
@@ -128,13 +129,16 @@ export class EDMFileWatcher {
                     doc._id = cachedRecord._id;
                     doc._rev = cachedRecord._rev;
                 }
-                const transfers: GQLEdgeList = _.get(backendResponse.data.createOrUpdateFile.file, 'file_transfers', null);
-                doc.transfers = EDMQueries.unpackFileTransferResponse(transfers);
+                // const transfers: GQLEdgeList = _.get(
+                //     backendResponse.data.createOrUpdateFile.file, 'fileTransfers', null);
+                // doc.transfers = EDMQueries.unpackFileTransferResponse(transfers);
                 this.cache.addFile(doc).catch((error) => {
                     log.error({err: error}, `Cache put failed: ${doc._id}`);
                 });
                 return backendResponse;
-            });
+            }, (error) => {
+                log.error({error: error},
+                    `Register file failed with error`)});
             // .catch((error) => {
             //     // We get the main GQL error from the server in error.message
             //     // and a list in the array errors.graphQLErrors

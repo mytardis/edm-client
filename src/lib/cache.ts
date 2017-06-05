@@ -16,6 +16,7 @@ import {settings} from "./settings";
 import {TransferQueuePool} from "./transfer_queue";
 
 import * as logger from "./logger";
+import {EDMQueries} from "./queries";
 const log = logger.log.child({'tags': ['cache']});
 
 export class EDMFileCache {
@@ -38,9 +39,9 @@ export class EDMFileCache {
                 log.debug({event: 'change', result: change}, `PouchDB on change event: ${change.id}`);
 
                 let cachedFile = change.doc as EDMCachedFile;
-                if (!change.deleted && cachedFile.transfers != null) {
-                    this.queuePendingTransfers(cachedFile);
-                }
+                // if (!change.deleted && cachedFile.transfers != null) {
+                //     this.queuePendingTransfers(cachedFile);
+                // }
             })
             .on('complete', (info) => {
                 log.info({event: 'complete', result: info},
@@ -78,42 +79,42 @@ export class EDMFileCache {
         return filepath;
     }
 
-    queuePendingTransfers(cachedFile: EDMCachedFile) {
-        for (let xfer of cachedFile.transfers) {
-            // TODO: Stop any active transfers that have been cancelled
-            //       by the backend server (eg in response to the file stats changing, destination deletion, etc)
-            // if (xfer.status === 'cancelled' && TransferQueuePool.isTransferInProgress(xfer.id)) {
-            //     TransferQueuePool.cancel(xfer.id)
-            // }
-            if (xfer.status === 'new') {
-                //let queue_unsaturated: boolean = true;
-                let xfer_job = TransferQueuePool.createTransferJob(cachedFile, xfer);
-
-                if (TransferQueuePool.isFull(xfer.destination_id)) {
-                    // TODO: How do we ensure jobs that fail to _queue (backpressure or real failure) get re-queued later ?
-
-                    log.error(`[Not implemented]: TransferQueue ${xfer.destination_id} is full (maximum allowed queued tasks exceeded).`+
-                                  `FileTransfer ${xfer.id} was not queued.`);
-                    continue;
-                }
-
-                TransferQueuePool.queueTransfer(xfer_job)
-                    .then((result) => {
-                        // update PouchDB with file transfer status = queued
-                        log.info({result: result}, `file_transfer updated: ${xfer.id}`);
-
-                        if (result['queue_saturated']) {
-                            log.error({result: result}, `[Not implemented]: TransferQueues ${xfer.destination_id} is now saturated.`);
-                        }
-                    })
-                    .catch((error) => {
-                        // we may catch a rejected Promise here if the job cannot be queued at this time
-                        // eg, a network failure notifying the server
-                        log.error({err: error}, `Failed to queue file_transfer: ${xfer.id}`);
-                    });
-            }
-        }
-    }
+    // queuePendingTransfers(cachedFile: EDMCachedFile) {
+    //     for (let xfer of cachedFile.transfers) {
+    //         // TODO: Stop any active transfers that have been cancelled
+    //         //       by the backend server (eg in response to the file stats changing, destination deletion, etc)
+    //         // if (xfer.status === 'cancelled' && TransferQueuePool.isTransferInProgress(xfer.id)) {
+    //         //     TransferQueuePool.cancel(xfer.id)
+    //         // }
+    //         if (xfer.status === 'new') {
+    //             //let queue_unsaturated: boolean = true;
+    //             let xfer_job = QueuePool.createTransferJob(cachedFile, xfer);
+    //
+    //             if (TransferQueuePool.isFull(xfer.destination_id)) {
+    //                 // TODO: How do we ensure jobs that fail to _queue (backpressure or real failure) get re-queued later ?
+    //
+    //                 log.error(`[Not implemented]: TransferQueue ${xfer.destination_id} is full (maximum allowed queued tasks exceeded).`+
+    //                               `FileTransfer ${xfer.id} was not queued.`);
+    //                 continue;
+    //             }
+    //
+    //             TransferQueuePool.queueTransfer(xfer_job)
+    //                 .then((result) => {
+    //                     // update PouchDB with file transfer status = queued
+    //                     log.info({result: result}, `file_transfer updated: ${xfer.id}`);
+    //
+    //                     if (result['queue_saturated']) {
+    //                         log.error({result: result}, `[Not implemented]: TransferQueues ${xfer.destination_id} is now saturated.`);
+    //                     }
+    //                 })
+    //                 .catch((error) => {
+    //                     // we may catch a rejected Promise here if the job cannot be queued at this time
+    //                     // eg, a network failure notifying the server
+    //                     log.error({err: error}, `Failed to queue file_transfer: ${xfer.id}`);
+    //                 });
+    //         }
+    //     }
+    // }
 }
 
 /*

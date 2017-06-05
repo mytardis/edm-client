@@ -6,28 +6,14 @@ import {MutationOptions} from "apollo-client";
 import {ApolloQueryResult} from "apollo-client";
 import {ObservableQuery} from "apollo-client";
 
-import {settings} from "./settings";
-import {EDMConnection} from "../edmKit/connection";
+import {client} from "../edmKit/connection";
 import EDMFile from "./file_tracking";
 
-/*
- Used in place of EDMConnection.global_client. For reasons I don't understand,
- EDMConnection.global_client is undefined in some tests.
- */
-function global_client(): EDMConnection {
-    if (EDMConnection._global_client == null) {
-        EDMConnection._global_client = new EDMConnection(
-            settings.conf.serverSettings.host,
-            settings.conf.serverSettings.token);
-    }
-    return EDMConnection._global_client;
-}
 
 export class EDMQueries {
 
-    public static configQuery(variables = {}, connection?: EDMConnection): ObservableQuery<any> {
-        if (connection == null) connection = global_client();
-
+    public static configQuery(variables = {})
+    : ObservableQuery<any> {
         const query = gql`query MeQuery {
                               currentClient {
                                 id
@@ -54,7 +40,7 @@ export class EDMQueries {
                               }
                             }`;
 
-        return connection.watchQuery({
+        return client().watchQuery({
             query: query,
             variables: variables,
         });
@@ -88,12 +74,12 @@ export class EDMQueries {
                  clientMutationId
                     file {
                       filepath
-                      file_transfers(first: 999) {
+                      fileTransfers(first: 999) {
                         edges {
                           node {
                             id
                             status
-                            bytes_transferred
+                            bytesTransferred
                             destination {
                               id
                               host { id }
@@ -125,7 +111,8 @@ export class EDMQueries {
      * @param transfers_paginated
      * @private
      */
-    public static unpackFileTransferResponse(transfers_paginated: GQLEdgeList): EDMCachedFileTransfer[] {
+    public static unpackFileTransferResponse(transfers_paginated: GQLEdgeList)
+    : EDMCachedFileTransfer[] {
         if (transfers_paginated == null || transfers_paginated.edges == null) {
             return [];
         }
@@ -141,7 +128,8 @@ export class EDMQueries {
     }
 
     public static getEDMFileGqlVariables(file: EDMFile) {
-        let variables = _.pick(file.stats, ['size', 'mtime', 'atime', 'ctime', 'birthtime', 'mode']);
+        let variables = _.pick(file.stats, ['size', 'mtime', 'atime', 'ctime',
+            'birthtime', 'mode']);
         variables['filepath'] = file.filepath;
         return variables;
     }
@@ -149,23 +137,20 @@ export class EDMQueries {
     public static registerFileWithServer(
                                   file: EDMFile,
                                   source_name: string,
-                                  mutation_id?: string,
-                                  connection?: EDMConnection): Promise<ApolloQueryResult<any>> {
-
-        if (connection == null) connection = global_client();
+                                  mutation_id?: string)
+    : Promise<ApolloQueryResult<any>> {
 
         const mutation = EDMQueries.createOrUpdateFileMutation(
             file,
             source_name,
             mutation_id);
 
-        return connection.mutate(mutation);
+        return client().mutate(mutation);
     }
 
-    public static updateFileTransfer(transfer: EDMCachedFileTransfer,
-                                     connection?: EDMConnection): Promise<ApolloQueryResult<any>> {
-
-        if (connection == null) connection = global_client();
+    public static updateFileTransfer(
+           transfer: EDMCachedFileTransfer)
+    : Promise<ApolloQueryResult<any>> {
 
         const query = gql`
         mutation updateFileTransfer($input: UpdateFileTransferInput!) {
@@ -195,6 +180,52 @@ export class EDMQueries {
                 }
         } as MutationOptions;
 
-        return connection.mutate(mutation);
+        return client().mutate(mutation);
     }
+
+    public static getPendingFileTransfers(
+        destination_id: string, amount: number)
+    : ObservableQuery<any> {
+
+        const query = gql`
+            query getPendingFileTransfers(
+                   $destId: String, $amount: Int, $status: String) {
+                currentClient {
+                    destination(id: $destId) {
+                        base
+                        id
+                        host {
+                            id
+                            name
+                            transferMethod
+                        }
+                        fileTransfers(first: $amount, status: $status) {
+                            edges {
+                                node {
+                                    file {
+                                        id
+                                        filepath
+                                        source {
+                                            id
+                                            basepath
+                                        }
+                                    }
+                                    id
+                                    status
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        `;
+
+        return client().watchQuery({
+            query: query,
+            variables: {
+                destId: destination_id,
+                amount: amount},
+        });
+    }
+
 }

@@ -6,31 +6,26 @@ import {TransferMethod} from './transfer_method';
 import {CopyOptions} from "fs-extra";
 
 import * as logger from "../logger";
+import FileTransferJob from "../file_transfer_job";
+
 const log = logger.log.child({'tags': ['transfer_method', 'local_transfer']});
 
 export class LocalTransfer extends TransferMethod {
+
     /**
      * Copies a file to another local destination
      * Mainly used for testing, I suppose
-     * @param filepath
-     * @param dest_filepath
-     * @param transfer_id
-     * @param file_local_id
+     * @param transferJob
      * @param doneCallback
      */
+    transfer(transferJob: FileTransferJob, doneCallback: Function) {
 
-    transfer(filepath: string,
-             dest_filepath: string,
-             transfer_id: string,
-             file_local_id: string,
-             doneCallback?: Function) {
-        const src = filepath;
-        const dest = path.normalize(
-            path.join(this.options.destBasePath, dest_filepath));
+        const src = this.getFullSourcePath(transferJob);
+        const dest = this.getFullDestPath(transferJob);
 
         fs.mkdirsSync(path.dirname(dest));
 
-        this.emit('start', transfer_id, 0, file_local_id);
+        this.emit('start', transferJob.fileTransferId, 0);
         if (fs.lstatSync(src).isSymbolicLink()) {
             // copy link
             let linkDest = fs.readlinkSync(src);
@@ -40,14 +35,12 @@ export class LocalTransfer extends TransferMethod {
                 if (error) {
                     log.error({
                             err: error,
-                            options: this.options,
-                            filepath: filepath,
-                            source_basepath: dest_filepath,
-                            transfer_id: transfer_id,
-                            file_local_id: file_local_id
+                            source: this.source,
+                            destination: this.destination,
+                            transferJob: transferJob,
                         },
                         `Failed to copy file: ${src} -> ${dest}`);
-                    this.emit('fail', transfer_id, null, file_local_id, error);
+                    this.emit('fail', transferJob.fileTransferId, null, error);
                 } else {
                     let stats = fs.lstatSync(src);
                     // below doesn't work, TODO: do this: http://stackoverflow.com/questions/10119242/softlinks-atime-and-mtime-modification
@@ -55,15 +48,13 @@ export class LocalTransfer extends TransferMethod {
                     log.debug({'from': dest, 'to': fs.readlinkSync(dest)},
                         'created link from -> to');
                     log.debug({
-                            options: this.options,
-                            filepath: filepath,
-                            source_basepath: dest_filepath,
-                            transfer_id: transfer_id,
-                            file_local_id: file_local_id
+                            source: this.source,
+                            destination: this.destination,
+                            transferJob: transferJob,
                         },
                         `Copied file: ${src} -> ${dest}`);
-                    this.emit('complete', transfer_id,
-                        fs.lstatSync(dest).size, file_local_id);
+                    this.emit('complete', transferJob.fileTransferId,
+                        fs.lstatSync(dest).size);
                 }
             });
         } else {
@@ -77,25 +68,22 @@ export class LocalTransfer extends TransferMethod {
                     if (error) {
                         log.error({
                                 err: error,
-                                options: this.options,
-                                filepath: filepath,
-                                source_basepath: dest_filepath,
-                                transfer_id: transfer_id,
-                                file_local_id: file_local_id
+                                source: this.source,
+                                destination: this.destination,
+                                transferJob: transferJob,
                             },
                             `Failed to copy file: ${src} -> ${dest}`);
-                        this.emit('fail', transfer_id, null, file_local_id, error);
+                        this.emit('fail',
+                            transferJob.fileTransferId, null, error);
                     } else {
                         log.debug({
-                                options: this.options,
-                                filepath: filepath,
-                                source_basepath: dest_filepath,
-                                transfer_id: transfer_id,
-                                file_local_id: file_local_id
+                                source: this.source,
+                                destination: this.destination,
+                                transferJob: transferJob,
                             },
                             `Copied file: ${src} -> ${dest}`);
-                        this.emit('complete', transfer_id,
-                            fs.lstatSync(dest).size, file_local_id);
+                        this.emit('complete', transferJob.fileTransferId,
+                            fs.lstatSync(dest).size);
                     }
                 });
         }

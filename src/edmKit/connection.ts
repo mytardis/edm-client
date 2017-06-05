@@ -5,27 +5,25 @@
  *
  */
 /// <reference path="../types.d.ts" />
+import * as fetch from 'isomorphic-fetch';
+global['fetch'] = fetch;
+
 import {createNetworkInterface, default as ApolloClient} from "apollo-client";
 import {NetworkInterfaceOptions} from "apollo-client/transport/networkInterface";
 import {settings} from "../lib/settings";
+import {isNullOrUndefined} from "util";
 
 // require('request').debug = true;
 
 export class EDMConnection extends ApolloClient {
-
-    public static _global_client: EDMConnection = null;
-    public static get global_client(): EDMConnection {
-        if (EDMConnection._global_client == null) {
-            EDMConnection._global_client = new EDMConnection(
-                settings.conf.serverSettings.host,
-                settings.conf.serverSettings.token);
-        }
-        return EDMConnection._global_client;
-    }
+    private static _client: EDMConnection;
+    private host: string;
+    private token: string;
 
     constructor(host: string, token: string) {
         const graphqlEndpoint = `http://${host}/api/v1/graphql`;
-        const networkInterface = createNetworkInterface(<NetworkInterfaceOptions>{uri: graphqlEndpoint});
+        const networkInterface = createNetworkInterface(
+            <NetworkInterfaceOptions>{uri: graphqlEndpoint});
         networkInterface.use([{
             applyMiddleware(req, next) {
                 if (!req.options.headers) {
@@ -40,5 +38,21 @@ export class EDMConnection extends ApolloClient {
         }]);
 
         super({networkInterface: networkInterface});
+        this.host = host;
+        this.token = token;
+    }
+
+    public static client() {
+        const host = settings.conf.serverSettings.host;
+        const token = settings.conf.serverSettings.token;
+
+        if (true || isNullOrUndefined(EDMConnection._client) ||
+            EDMConnection._client.host != host ||
+            EDMConnection._client.token != token) {
+            EDMConnection._client = new EDMConnection(host, token);
+        }
+        return EDMConnection._client;
     }
 }
+
+export const client = EDMConnection.client;

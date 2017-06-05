@@ -71,7 +71,8 @@ export class EDMSettings extends events.EventEmitter {
                 this.readConfigFile(path.normalize(initArgs.configFilePath));
             }
             else {
-                log.error({path: initArgs.configFilePath}, `Config file does not exist: ${initArgs.configFilePath}`);
+                log.error({path: initArgs.configFilePath},
+                    `Config file does not exist: ${initArgs.configFilePath}`);
                 process.exit(1);
             }
         else {
@@ -108,12 +109,20 @@ export class EDMSettings extends events.EventEmitter {
         }
     }
 
-    public getDestination(destination_id: string): EDMDestination {
+    public getDestination(destination_id: string, getHost?: boolean)
+    : EDMDestination {
         let destination = null;
+        let dest_source_id = null;
         for (let source of this.conf.sources) {
             for (let dest of source.destinations) {
                 if (dest.id === destination_id) {
-                    destination = dest;
+                    destination = <EDMDestination>{
+                        id: dest.id,
+                        hostId: dest.hostId,
+                        base: dest.base,
+                        sourceId: source.id,
+                        exclusions: dest.exclusions,
+                    };
                     break;
                 }
             }
@@ -121,6 +130,9 @@ export class EDMSettings extends events.EventEmitter {
         }
 
         if (destination == null) throw Error(`Destination not found: ${destination_id}`);
+        if (getHost) {
+            destination.host = this.getHost(destination.hostId);
+        }
         return destination;
     }
 
@@ -134,6 +146,16 @@ export class EDMSettings extends events.EventEmitter {
         let host: EDMDestinationHost = _.find(this.conf.hosts, {"id": host_id });
         if (host == null) throw Error(`Host not found: ${host_id}`);
         return host;
+    }
+
+    getDestinations(): Iterable<EDMDestination> {
+        let destinations = new Set();
+        for (let source of this.conf.sources) {
+            for (let dest of source.destinations) {
+                destinations.add(dest);
+            }
+        }
+        return destinations.values();
     }
 }
 

@@ -4,37 +4,33 @@
  * Runs watchers, checkers, actions etc.
  */
 /// <reference path="../types.d.ts" />
-
-import * as fetch from 'isomorphic-fetch';
-global['fetch'] = fetch;
-
-import gql from 'graphql-tag';
 import {ObservableQuery} from "apollo-client";
 import {CronJob} from 'cron';
 
 import {settings} from "./settings";
-import {EDMConnection} from "../edmKit/connection";
 import {EDMFileWatcher} from "./file_watcher";
 import {EDMQueries} from "./queries";
 
 import * as logger from "./logger";
+import {TransferQueuePool} from "./transfer_queue";
 const log = logger.log.child({'tags': ['main']});
 
 export class EDM {
     static pingBackendInterval = 10000;
 
-    client: EDMConnection;
+    // client: EDMConnection;
     private tasks: any;
     private watchers: any;
+    private transfersSubs: Map<string, ObservableQuery<any>>;
 
     constructor() {
-        this.client = new EDMConnection(
-            settings.conf.serverSettings.host,
-            settings.conf.serverSettings.token);
+        // this.client = new EDMConnection(
+        //     settings.conf.serverSettings.host,
+        //     settings.conf.serverSettings.token);
     }
 
     startConfigPolling() {
-        const backendQuery = EDMQueries.configQuery({}, this.client);
+        const backendQuery = EDMQueries.configQuery({});
         backendQuery.subscribe({
             next: (value) => {
                 let clientInfo = value.data.currentClient;
@@ -45,7 +41,8 @@ export class EDM {
                         hosts: clientInfo.hosts} as Settings);
                 }
                 this.setUp();
-                log.debug({settings: settings, currentClient: clientInfo}, "Received settings.");
+                log.debug({settings: settings, currentClient: clientInfo},
+                          "Received settings.");
             },
             error: (error) => {
                 log.error({'err': error}, "configpoll error " + error);
@@ -74,6 +71,7 @@ export class EDM {
                     break;
             }
         }
+        this.startTransferPolling();
     }
 
     private startWatcher(source: any) {
@@ -98,6 +96,7 @@ export class EDM {
     }
 
     private stop() {
+        this.stopTransferPolling();
         // stop/delete all watchers etc
         this.watchers = [];
         if (this.tasks != null) {
@@ -107,5 +106,46 @@ export class EDM {
             }
         }
         this.tasks = [];
+    }
+
+    private startTransferPolling() {
+        // TODO: Stop any active transfers that have been cancelled by the
+        // backend server (eg in response to the file stats changing,
+        // destination deletion, etc)
+
+        this.transfersSubs = new Map();  // later can be changed to GraphQL
+        // subscriptions
+        for (let destination of settings.getDestinations()) {
+            this.transfersSubs[destination.id] = EDMQueries.getPendingFileTransfers(
+                destination.id, 10);
+            let query = this.transfersSubs[destination.id];
+            query.subscribe({
+                next: (value) => {
+                    // new transfers, start/trigger queue
+                    let transfers = value.data.currentClient.fileTransfers;
+                    log.debug({destination: destination,
+                        transfers: transfers}, "Received transfers.");
+                    let queue = TransferQueuePool.getQueue(destination.id);
+                    log.debug(queue, "activating queue");
+                    queue.activate();
+                    log.debug({}, "queue activated");
+                },
+                error: (error) => {
+                    log.error({'err': error}, "transfers poll error " + error);
+                },
+                complete: () => {
+                    log.info("transfer polling complete")
+                }
+            });
+            query.startPolling(EDM.pingBackendInterval);
+        }
+    }
+
+    private stopTransferPolling() {
+        if (this.transfersSubs != undefined) {
+            for (let [_dest_id, sub] of this.transfersSubs) {
+                sub.stopPolling();
+            }
+        }
     }
 }
