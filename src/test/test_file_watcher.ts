@@ -10,7 +10,6 @@ import {getTmpDirPath} from "../lib/testutils";
 import {settings} from "../lib/settings";
 import {EDMFileWatcher} from "../lib/file_watcher";
 import EDMFile from "../lib/file_tracking";
-import {EDMFileCache} from "../lib/cache";
 import {EDMQueries} from "../lib/queries";
 
 import * as logger from "../lib/logger";
@@ -100,7 +99,7 @@ describe("file watcher", function () {
         nock.cleanAll();
     });
 
-    it("should register and cache new files", (done) => {
+    it("should register new files", (done) => {
         prepareEnv();
         prepareForGqlRequest();
 
@@ -113,16 +112,14 @@ describe("file watcher", function () {
         let watcher = new EDMFileWatcher(source);
 
         const edmFile: EDMFile = new EDMFile(source, path.basename(tmpFile));
-        watcher.registerAndCache(edmFile)
+        watcher.register(edmFile)
             .then((backendResponse) => {
-                return watcher.cache.getEntry(edmFile);
+                return backendResponse;
             }).then((doc) => {
                 const expected = EDMQueries.unpackFileTransferResponse(
                     replyData.data.createOrUpdateFile.file.file_transfers);
-                expect(doc.transfers[0].status).to.equal(expected[0].status);
-                expect(doc.transfers[1].status).to.equal(expected[1].status);
                 log.debug({result: doc},
-                    `Successfully cached and registered ${doc._id}`);
+                    `Successfully registered ${doc}`);
                 done();
             })
             .catch((error) => {
@@ -137,19 +134,10 @@ describe("file watcher", function () {
         prepareForGqlRequest(2);
 
         let watcher = new EDMFileWatcher({basepath: dirToIngest});
-        watcher.cache = new EDMFileCache('testing');
         watcher.endWalk = () => {
             const numfiles = watcher.lastWalkItems.length - 2;
             expect(numfiles).to.be.equal(1);
-            watcher.cache._db.allDocs().then((result) => {
-                log.debug({result: result}, `Cached ${numfiles} file records.`);
-                // db adds aren't always complete yet, can be improved
-                expect(result.total_rows).to.be.lessThan(numfiles+1);
-                done();
-            }).catch((error) => {
-                log.error({err: error}, `Failed to access cache.`);
-                done(error);
-            });
+            done();
         };
         watcher.walk();
     });

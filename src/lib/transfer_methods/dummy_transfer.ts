@@ -41,10 +41,7 @@ export class DummyTransfer extends TransferMethod {
      *  - Automatically retry / resume transfers upon failures, before
      * eventually giving up and emitting a 'fail' event.
      *
-     * @param filepath
-     * @param dest_basepath
-     * @param transfer_id
-     * @param file_local_id
+     * @param transferJob
      * @param doneCallback
      */
 

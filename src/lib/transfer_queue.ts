@@ -55,7 +55,7 @@ export class TransferQueueManager extends events.EventEmitter  {
             // == this.transferFile(task, taskDone);
         });
         this.concurrency = _.get(settings.conf.appSettings,
-            'maxAsyncTransfersPerDestination', 1);
+            'maxAsyncTransfersPerDestination', 3);
         this._queue.buffer = _.get(options, 'highWaterMark', 100000);
 
         // Fires when a task completes and running workers <= (
@@ -84,6 +84,7 @@ export class TransferQueueManager extends events.EventEmitter  {
         // Fires when the last buffered item has given to a worker
         this._queue.empty = () => {
             this.emit('empty', this);
+            this.queueTransfers();
             log.debug({event: 'empty'}, `Queue: ${this.destination_id} became empty.`);
         };
 

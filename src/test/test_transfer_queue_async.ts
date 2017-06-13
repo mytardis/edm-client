@@ -14,7 +14,6 @@ import EDMFile from "../lib/file_tracking";
 import FileTransferJob from "../lib/file_transfer_job";
 import {DummyTransfer} from "../lib/transfer_methods/dummy_transfer";
 import {TransferQueuePool} from "../lib/transfer_queue";
-import {LocalCache} from "../lib/cache";
 
 import * as logger from "../lib/logger";
 const log = logger.log.child({'tags': ['test', 'test_transfer_queue_async']});

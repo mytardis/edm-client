@@ -183,6 +183,28 @@ export class EDMQueries {
         return client().mutate(mutation);
     }
 
+    public static checkoutFileTransfers(destination_id: string, amount: number)
+    : Promise<ApolloQueryResult<any>> {
+        const query = gql`
+        mutation checkoutFileTransfers($input: CheckoutFileTransfersInput!) {
+          checkoutFileTransfers(input: $input) {
+            
+          }
+        }
+        `;
+        const mutation = {
+            mutation: query,
+            variables: {
+                input: {
+                    clientMutationId: uuidV4(),
+                    destination_id: destination_id,
+                    amount: amount,
+                }
+            }
+        }
+        return client().mutate(mutation);
+    }
+
     public static getPendingFileTransfers(
         destination_id: string, amount: number)
     : ObservableQuery<any> {
@@ -224,7 +246,9 @@ export class EDMQueries {
             query: query,
             variables: {
                 destId: destination_id,
-                amount: amount},
+                amount: amount,
+                status: "new",
+            },
         });
     }
 

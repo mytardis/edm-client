@@ -30,7 +30,9 @@ export class LocalTransfer extends TransferMethod {
             // copy link
             let linkDest = fs.readlinkSync(src);
             // TODO: test if link exists and points correctly, else overwrite
-            fs.symlink(linkDest, dest, (error) => {
+            try {
+                fs.symlinkSync(linkDest, dest);
+            } catch (error) {
                 doneCallback();
                 if (error) {
                     log.error({
@@ -41,51 +43,50 @@ export class LocalTransfer extends TransferMethod {
                         },
                         `Failed to copy file: ${src} -> ${dest}`);
                     this.emit('fail', transferJob.fileTransferId, null, error);
-                } else {
-                    let stats = fs.lstatSync(src);
-                    // below doesn't work, TODO: do this: http://stackoverflow.com/questions/10119242/softlinks-atime-and-mtime-modification
-                    //fs.utimesSync(dest, stats.atime, stats.mtime);
-                    log.debug({'from': dest, 'to': fs.readlinkSync(dest)},
-                        'created link from -> to');
-                    log.debug({
-                            source: this.source,
-                            destination: this.destination,
-                            transferJob: transferJob,
-                        },
-                        `Copied file: ${src} -> ${dest}`);
-                    this.emit('complete', transferJob.fileTransferId,
-                        fs.lstatSync(dest).size);
                 }
-            });
+            }
+            doneCallback();
+            let stats = fs.lstatSync(src);
+            // below doesn't work, TODO: do this: http://stackoverflow.com/questions/10119242/softlinks-atime-and-mtime-modification
+            //fs.utimesSync(dest, stats.atime, stats.mtime);
+            log.debug({'from': dest, 'to': fs.readlinkSync(dest)},
+                'created link from -> to');
+            log.debug({
+                    source: this.source,
+                    destination: this.destination,
+                    transferJob: transferJob,
+                },
+                `Copied file: ${src} -> ${dest}`);
+            this.emit('complete', transferJob.fileTransferId,
+                fs.lstatSync(dest).size);
         } else {
-            fs.copy(src, dest, <CopyOptions>{
+            try {
+                fs.copySync(src, dest, <CopyOptions>{
                     overwrite: false,
                     errorOnExist: true, dereference: false,
                     preserveTimestamps: true
-                },
-                (error) => {
-                    doneCallback();
-                    if (error) {
-                        log.error({
-                                err: error,
-                                source: this.source,
-                                destination: this.destination,
-                                transferJob: transferJob,
-                            },
-                            `Failed to copy file: ${src} -> ${dest}`);
-                        this.emit('fail',
-                            transferJob.fileTransferId, null, error);
-                    } else {
-                        log.debug({
-                                source: this.source,
-                                destination: this.destination,
-                                transferJob: transferJob,
-                            },
-                            `Copied file: ${src} -> ${dest}`);
-                        this.emit('complete', transferJob.fileTransferId,
-                            fs.lstatSync(dest).size);
-                    }
                 });
+            } catch (error) {
+                doneCallback();
+                log.error({
+                        err: error,
+                        source: this.source,
+                        destination: this.destination,
+                        transferJob: transferJob,
+                    },
+                    `Failed to copy file: ${src} -> ${dest}`);
+                this.emit('fail',
+                        transferJob.fileTransferId, null, error);
+            }
+            doneCallback();
+            log.debug({
+                    source: this.source,
+                    destination: this.destination,
+                    transferJob: transferJob,
+                },
+                `Copied file: ${src} -> ${dest}`);
+            this.emit('complete', transferJob.fileTransferId,
+                fs.lstatSync(dest).size);
         }
     }
 }
