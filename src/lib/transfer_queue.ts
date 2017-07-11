@@ -37,6 +37,7 @@ export class TransferQueueManager extends events.EventEmitter  {
     private method: TransferMethod;
     private _paused: boolean = false;
     private destination: EDMDestination;
+    private _tasksOnQueue: Array<string>;
 
     get concurrency(): number {
         return this._queue.concurrency;
@@ -57,6 +58,8 @@ export class TransferQueueManager extends events.EventEmitter  {
         this.concurrency = _.get(settings.conf.appSettings,
             'maxAsyncTransfersPerDestination', 3);
         this._queue.buffer = _.get(options, 'highWaterMark', 100000);
+
+        this._tasksOnQueue = [];
 
         // Fires when a task completes and running workers <= (
         // concurrency - buffer)
@@ -122,21 +125,49 @@ export class TransferQueueManager extends events.EventEmitter  {
         // onUpdateProgress re-registers itself as a one time event every time
         // it's called.
         // TODO: handle 'fail' event
-        this.method.on('start', (id, bytes) =>
-            this.onTransferStart(id, bytes));
+        // this.method.on('start', (id, bytes) =>
+        //     this.onTransferStart(id, bytes));
         this.method.on('progress', (id, bytes) =>
             this.onUpdateProgress(id, bytes));
-        this.method.on('complete', (id, bytes) =>
-            this.onTransferComplete(id, bytes));
+        // this.method.on('complete', (id, bytes) =>
+        //     this.onTransferComplete(id, bytes));
+    }
+
+    private isNotQueued(job: FileTransferJob) {
+        return this._tasksOnQueue.indexOf(job.fileTransferId) === -1;
     }
 
     queueTask(job: FileTransferJob) {
+        this._tasksOnQueue.push(job.fileTransferId);
         this._queue.push(job);
         return this.isPaused() || this.isFull();
     }
 
     _doTask(job: FileTransferJob, jobDoneCallback: Function) {
-        this.transferFile(job, jobDoneCallback);
+        let reportingCallback = (id, bytes) => {
+            if (bytes > -1)
+                this.onTransferComplete(id, bytes).then((backendResponse) => {
+                    let file_transfer_id = backendResponse.data.updateFileTransfer.fileTransfer.id;
+                    let bytes_transferred = backendResponse.data.updateFileTransfer.fileTransfer.bytes_transferred;
+                    log.debug({event: 'progress', result: backendResponse},
+                        `Updated backend with transfer complete status: ${file_transfer_id}`);
+                    this.emit('transfer_complete', file_transfer_id, bytes_transferred);
+                    jobDoneCallback();
+                })
+                .catch((error) => {
+                    log.error({
+                            err: error,
+                            event: 'complete',
+                            queue_id: this.destination_id,
+                            file_transfer_id: id,
+                            bytes_transferred: bytes
+                        },
+                        `Failed to update transfer complete status: ${id}`);
+                    jobDoneCallback();
+                });
+            else jobDoneCallback();
+        };
+        this.transferFile(job, reportingCallback);
     }
 
     isFull() {
@@ -157,7 +188,32 @@ export class TransferQueueManager extends events.EventEmitter  {
         return this._queue.resume();
     }
 
+    /**
+     * Update server that file transfer is being started, then start file
+     * transfer. Avoids race condition where transfer is started and server
+     * returns transfer as new.
+     *
+     * @param transferJob
+     * @param doneCallback
+     */
     private transferFile(transferJob: FileTransferJob, doneCallback) {
+        let transfer = {
+            id: transferJob.fileTransferId,
+            bytes_transferred: 0,
+            status: "uploading"} as EDMCachedFileTransfer;
+
+        EDMQueries.updateFileTransfer(transfer).then((backendResponse) => {
+            // TODO confirm status, server might have cancelled transfer
+            log.debug(backendResponse, "Lock file transfer for execution");
+            this._transferFile(transferJob, doneCallback);
+            this._tasksOnQueue = this._tasksOnQueue.filter(
+                e => e !== transferJob.fileTransferId);
+        }).catch((reason) => {
+            log.error(`transfer failed with error: ${reason}`);
+        });
+    }
+
+    private _transferFile(transferJob: FileTransferJob, doneCallback) {
         try {
             this.method.transfer(
                 transferJob,
@@ -181,7 +237,7 @@ export class TransferQueueManager extends events.EventEmitter  {
              file_transfer_id: ${file_transfer_id}, 
              queue_id: ${this.destination_id}, 
              bytes_transferred: ${bytes_transferred}`);
-        this.onUpdateProgress(file_transfer_id, bytes_transferred);
+        // this.onUpdateProgress(file_transfer_id, bytes_transferred);
     }
 
     private onUpdateProgress(file_transfer_id: string, bytes_transferred: number) {
@@ -222,7 +278,7 @@ export class TransferQueueManager extends events.EventEmitter  {
     }
 
     private onTransferComplete(file_transfer_id: string,
-                               bytes_transferred: number) {
+                               bytes_transferred: number) : Promise<any> {
         // TODO: Deal with network failure here, since we don't want the server
         //       never finding out about completed
         //       transfers (in the case where the server is unable to verify itself).
@@ -245,23 +301,7 @@ export class TransferQueueManager extends events.EventEmitter  {
             bytes_transferred: bytes_transferred,
             status: "complete"} as EDMCachedFileTransfer;
 
-        EDMQueries.updateFileTransfer(transfer)
-        .then((backendResponse) => {
-            log.debug({event: 'progress', result: backendResponse},
-                `Updated backend with transfer complete status: ${file_transfer_id}`);
-
-            this.emit('transfer_complete', file_transfer_id, bytes_transferred);
-        })
-        .catch((error) => {
-            log.error({
-                    err: error,
-                    event: 'complete',
-                    queue_id: this.destination_id,
-                    file_transfer_id: file_transfer_id,
-                    bytes_transferred: bytes_transferred
-                },
-                `Failed to update transfer complete status: ${file_transfer_id}`);
-        });
+        return EDMQueries.updateFileTransfer(transfer);
     }
 
     getAvailableSpots() : number {
@@ -289,7 +329,8 @@ export class TransferQueueManager extends events.EventEmitter  {
                     ft.file.filepath  // TODO: server provides destination path
                 );
                 log.debug(ftJob, "queuing file transfer job")
-                this.queueTask(ftJob);
+                if (this.isNotQueued(ftJob))
+                    this.queueTask(ftJob);
             }
         });
     }

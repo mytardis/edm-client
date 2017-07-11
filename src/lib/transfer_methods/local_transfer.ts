@@ -22,6 +22,7 @@ export class LocalTransfer extends TransferMethod {
 
         const src = this.getFullSourcePath(transferJob);
         const dest = this.getFullDestPath(transferJob);
+        const id = transferJob.fileTransferId;
 
         fs.mkdirsSync(path.dirname(dest));
 
@@ -33,7 +34,7 @@ export class LocalTransfer extends TransferMethod {
             try {
                 fs.symlinkSync(linkDest, dest);
             } catch (error) {
-                doneCallback();
+                doneCallback(id, -1);
                 if (error) {
                     log.error({
                             err: error,
@@ -43,9 +44,9 @@ export class LocalTransfer extends TransferMethod {
                         },
                         `Failed to copy file: ${src} -> ${dest}`);
                     this.emit('fail', transferJob.fileTransferId, null, error);
+                    return;
                 }
             }
-            doneCallback();
             let stats = fs.lstatSync(src);
             // below doesn't work, TODO: do this: http://stackoverflow.com/questions/10119242/softlinks-atime-and-mtime-modification
             //fs.utimesSync(dest, stats.atime, stats.mtime);
@@ -59,6 +60,7 @@ export class LocalTransfer extends TransferMethod {
                 `Copied file: ${src} -> ${dest}`);
             this.emit('complete', transferJob.fileTransferId,
                 fs.lstatSync(dest).size);
+            doneCallback(id, fs.lstatSync(dest).size);
         } else {
             try {
                 fs.copySync(src, dest, <CopyOptions>{
@@ -67,7 +69,6 @@ export class LocalTransfer extends TransferMethod {
                     preserveTimestamps: true
                 });
             } catch (error) {
-                doneCallback();
                 log.error({
                         err: error,
                         source: this.source,
@@ -77,8 +78,9 @@ export class LocalTransfer extends TransferMethod {
                     `Failed to copy file: ${src} -> ${dest}`);
                 this.emit('fail',
                         transferJob.fileTransferId, null, error);
+                doneCallback(id, -1);
+                return;
             }
-            doneCallback();
             log.debug({
                     source: this.source,
                     destination: this.destination,
@@ -87,6 +89,7 @@ export class LocalTransfer extends TransferMethod {
                 `Copied file: ${src} -> ${dest}`);
             this.emit('complete', transferJob.fileTransferId,
                 fs.lstatSync(dest).size);
+            doneCallback(id, fs.lstatSync(dest).size);
         }
     }
 }

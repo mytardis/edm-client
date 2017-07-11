@@ -11,13 +11,21 @@ import {EDMQueries} from "./queries";
 
 import * as logger from "./logger";
 const log = logger.log.child({'tags': ['file_watcher']});
+import {Span, Tags, Tracer, globalTracer} from 'opentracing';
+
 
 export class EDMFileWatcher {
     source: EDMSource;
     filters: any = [];
     lastWalkItems: any;
+    private span: Span;
+    private tracer: Tracer;
 
     constructor(source: any, exclude?: any) {
+        this.tracer = globalTracer();
+        this.span = this.tracer.startSpan('file_watcher');
+        this.span.setTag(Tags.SAMPLING_PRIORITY, 1);
+        this.span.log({'event': 'walker_initialised'});
         this.source = source;
         if (exclude != null) {
             const excluder = new RegExp(exclude);
@@ -52,6 +60,7 @@ export class EDMFileWatcher {
     }
 
     handleFile(file) {
+        this.span.log({'event': 'handling file', 'file': file});
         if (file == null) {
             log.debug('Skipping: file is null');
             return;
@@ -74,6 +83,7 @@ export class EDMFileWatcher {
 
     endWalk() {
         log.debug({lastWalkItems: this.lastWalkItems}, "Finished one walk.");
+        // this.span.finish();
     }
 
     private statsHaveChanged(file: EDMFile, cachedFile: EDMCachedFile) {

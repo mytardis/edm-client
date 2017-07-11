@@ -44,10 +44,6 @@ describe("Local transfer method ", function() {
             sourceRelPath: path.basename(source_file),
             destRelPath: path.basename(source_file),
         };
-        localTransfer.transfer(
-            transferJob,
-            _.noop
-        );
         localTransfer.on('complete', (id, _size, local_id) => {
             expect(path.join(destination_base_path,
                 destination_rel_path)).to.be.a.file().and.equal(source_file);
@@ -55,6 +51,10 @@ describe("Local transfer method ", function() {
             expect(_size).to.equal(16);
             done();
         });
+        localTransfer.transfer(
+            transferJob,
+            _.noop
+        );
     });
 
     it('should recreate a symlink', (done) => {
@@ -84,10 +84,6 @@ describe("Local transfer method ", function() {
             sourceRelPath: path.basename(source_link),
             destRelPath: path.basename(source_link),
         };
-        localTransfer.transfer(
-            transferJob,
-            _.noop
-        );
         localTransfer.on('complete', (id, _size, local_id) => {
             // expect(path.join(destination_base_path,
             //     destination_rel_path)).to.be.a.file().and.equal(source_file);
@@ -99,7 +95,10 @@ describe("Local transfer method ", function() {
             expect(id).to.equal('a_file_transfer_id2');
             done();
         });
-
+        localTransfer.transfer(
+            transferJob,
+            _.noop
+        );
     });
 
     it('should error if file exists at destination', (done) => {
@@ -130,10 +129,6 @@ describe("Local transfer method ", function() {
             sourceRelPath: path.basename(source_file),
             destRelPath: destination_rel_path,
         };
-        localTransfer.transfer(
-            transferJob,
-            _.noop
-        );
         localTransfer.on('fail', (id, _null, error) => {
             expect(error.toString()).to.contain(
                 `${destination_file_full_path} already exists`);
@@ -148,5 +143,9 @@ describe("Local transfer method ", function() {
             expect(id).to.equal('a_file_transfer_id');
             done();
         });
+        localTransfer.transfer(
+            transferJob,
+            _.noop
+        );
     });
 });

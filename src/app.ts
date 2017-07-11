@@ -1,14 +1,70 @@
-﻿import 'source-map-support/register';
+﻿import {Tracer} from 'opentracing';
+let initTracer = require('jaeger-client').initTracer;
 
+let jaegerConfig = {
+    'serviceName': 'edm-client',
+    'reporter': {
+        // logSpans: false,
+        agentHost: 'localhost',
+        // agentPort: 5778,
+        flushIntervalMs: 10,
+    }
+};
+let options = {
+    'tags': {
+        'edm-client.version': '0.1',
+    }
+};
+
+let tracer: Tracer;
+let debug = false;
+if (debug) {
+    tracer = <Tracer>initTracer(jaegerConfig, options);
+} else {
+    tracer = <Tracer>initTracer({disable: true}, options);
+}
+
+
+// TODO: disable tracing for production?
+// initGlobalTracer();
+
+
+import 'source-map-support/register';
+
+let nodeCleanup = require('node-cleanup');
 import * as path from "path";
-
 import * as yargs from "yargs";
+
 
 import {EDM} from "./lib/main";
 import {settings} from "./lib/settings";
 
 import * as logger from "./lib/logger";
 const log = logger.log.child({'tags': ['app']});
+
+import {Span, Tags} from 'opentracing';
+
+// const tracer = globalTracer();
+
+let span : Span = tracer.startSpan('EDM-app');
+span.setTag(Tags.SAMPLING_PRIORITY, 1);
+
+span.log({'event': 'app started'});
+
+let span2 : Span = tracer.startSpan('define-cleanup');
+span2.setTag(Tags.SAMPLING_PRIORITY, 1);
+
+span2.log({'event': 'cleanup started'});
+
+nodeCleanup((exitCode, signal) => {
+    span.log({
+        'event': 'app finished',
+        'exit_code': exitCode,
+        'signal': signal});
+    span.finish();
+});
+span2.log({'event': 'cleanup finished'});
+span2.finish();
 
 /**
  * begin fancy load message and timeout

@@ -6,6 +6,7 @@
 /// <reference path="../types.d.ts" />
 import {ObservableQuery} from "apollo-client";
 import {CronJob} from 'cron';
+import {globalTracer, Span, Tags} from 'opentracing';
 
 import {settings} from "./settings";
 import {EDMFileWatcher} from "./file_watcher";
@@ -22,17 +23,24 @@ export class EDM {
     private tasks: any;
     private watchers: any;
     private transfersSubs: Map<string, ObservableQuery<any>>;
+    span: Span;
 
     constructor() {
+        // this.span = tracer.startSpan('EDM_class');
+        // this.span.setTag(Tags.SAMPLING_PRIORITY, 2);
+        // this.span.log({'event': 'EDM class constructed'});
         // this.client = new EDMConnection(
         //     settings.conf.serverSettings.host,
         //     settings.conf.serverSettings.token);
     }
 
     startConfigPolling() {
+        // this.span.log({'event': 'set config polling'});
         const backendQuery = EDMQueries.configQuery({});
         backendQuery.subscribe({
             next: (value) => {
+                // this.span.setTag(Tags.SPAN_KIND_MESSAGING_CONSUMER, true);
+                // this.span.log({'event': 'new config'});
                 let clientInfo = value.data.currentClient;
                 this.stop();
                 if (!settings.conf.appSettings.ignoreServerConfig) {
@@ -43,12 +51,17 @@ export class EDM {
                 this.setUp();
                 log.debug({settings: settings, currentClient: clientInfo},
                           "Received settings.");
+                // this.span.finish();
             },
             error: (error) => {
                 log.error({'err': error}, "configpoll error " + error);
                 // TODO: restart startConfigPolling after a total_time
+                // this.span.finish();
             },
-            complete: () => {log.info("configpoll complete")}});
+            complete: () => {
+                log.info("configpoll complete");
+                // this.span.finish();
+            }});
         backendQuery.startPolling(EDM.pingBackendInterval);
     }
 
@@ -112,7 +125,6 @@ export class EDM {
         // TODO: Stop any active transfers that have been cancelled by the
         // backend server (eg in response to the file stats changing,
         // destination deletion, etc)
-
         this.transfersSubs = new Map();  // later can be changed to GraphQL
         // subscriptions
         for (let destination of settings.getDestinations()) {
@@ -126,7 +138,8 @@ export class EDM {
                     log.debug({destination: destination,
                         transfers: transfers}, "Received transfers.");
                     let queue = TransferQueuePool.getQueue(destination.id);
-                    log.debug(queue, "activating queue");
+                    log.debug({'destination_id': queue.destination_id},
+                        "activating queue");
                     queue.activate();
                     log.debug({}, "queue activated");
                 },

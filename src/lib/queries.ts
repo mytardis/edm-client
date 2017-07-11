@@ -156,7 +156,7 @@ export class EDMQueries {
         mutation updateFileTransfer($input: UpdateFileTransferInput!) {
          updateFileTransfer(input: $input) {
           clientMutationId
-          file_transfer {
+          fileTransfer {
               id
               status
               bytes_transferred
@@ -175,7 +175,7 @@ export class EDMQueries {
                     input: {
                         clientMutationId: uuidV4(),
                         id: transfer.id,
-                        file_transfer: xfer,
+                        fileTransfer: xfer,
                     }
                 }
         } as MutationOptions;
@@ -188,7 +188,7 @@ export class EDMQueries {
         const query = gql`
         mutation checkoutFileTransfers($input: CheckoutFileTransfersInput!) {
           checkoutFileTransfers(input: $input) {
-            
+            fileTransfers
           }
         }
         `;
@@ -201,7 +201,7 @@ export class EDMQueries {
                     amount: amount,
                 }
             }
-        }
+        };
         return client().mutate(mutation);
     }
 
@@ -251,5 +251,4 @@ export class EDMQueries {
             },
         });
     }
-
 }
