@@ -25,9 +25,11 @@ export class LocalTransfer extends TransferMethod {
         const id = transferJob.fileTransferId;
 
         fs.mkdirsSync(path.dirname(dest));
+        log.debug(transferJob, 'locally transferring a file');
 
         this.emit('start', transferJob.fileTransferId, 0);
-        if (fs.lstatSync(src).isSymbolicLink()) {
+        let stat = fs.lstatSync(src);
+        if (stat.isSymbolicLink()) {
             // copy link
             let linkDest = fs.readlinkSync(src);
             // TODO: test if link exists and points correctly, else overwrite
@@ -61,6 +63,36 @@ export class LocalTransfer extends TransferMethod {
             this.emit('complete', transferJob.fileTransferId,
                 fs.lstatSync(dest).size);
             doneCallback(id, fs.lstatSync(dest).size);
+        } else if (stat.isDirectory()) {
+            try {
+                // TODO: apply dates and permissions to dir
+                fs.ensureDir(dest);
+            } catch (error) {
+                log.error({
+                    err: error,
+                    source: this.source,
+                    destination: this.destination,
+                    transferJob: transferJob,
+                },
+                `Failed to ensure dir: ${src} -> ${dest}`);
+                this.emit('fail', transferJob.fileTransferId, null, error);
+                doneCallback(id, -1);
+                return;
+            }
+            log.debug({
+                source: this.source,
+                destination: this.destination,
+                transferJob: transferJob,
+            },
+            `Ensured dir: ${src} -> ${dest}`);
+            let dest_size: number;
+            if (fs.existsSync(dest)) {
+                dest_size = fs.lstatSync(dest).size;
+            } else {
+                dest_size = stat.size;
+            }
+            this.emit('complete', transferJob.fileTransferId, dest_size);
+            doneCallback(id, dest_size);
         } else {
             try {
                 fs.copySync(src, dest, <CopyOptions>{

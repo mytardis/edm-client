@@ -103,24 +103,30 @@ describe("Integration::The client and server", function() {
         let sourceDir = createSourceDir();
     });
     beforeEach('clean leftover files before tests', () => {
+        this.timeout(5000);
         cleanFileEntries();
     });
     it("should talk to each other", function(done) {
+        this.timeout(20000);
         let edmClient = runEDM('');
         console.log('started edm client');
         // console.log(edmClient);
         edmClient.stdout.on('data', (data: Buffer) => {
-            console.log(data.toString('utf8'));
+            let datastr = data.toString('utf8');
+            console.log(datastr);
+            if (datastr.indexOf('Starting file watcher') > -1) {
+                expect(datastr, 'source configured').to.contain('/tmp/source');
+            }
         });
         edmClient.stderr.on('data', (data: Buffer) => {
             console.error(data.toString('utf8'));
         });
-        edmClient.on('close', () => {
-            expect(false).to.be.true;
+        edmClient.on('close', (exit) => {
+            expect(exit).to.be.null;
             done();
         });
-        setTimeout(10000, () => {
+        setTimeout(() => {
             edmClient.kill('SIGTERM');
-        });
+        }, 10000);
     });
 });

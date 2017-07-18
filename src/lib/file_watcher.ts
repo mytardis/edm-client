@@ -34,6 +34,11 @@ export class EDMFileWatcher {
             };
             this.filters.push(exclude_filter);
         }
+        // const ds_excluder = new RegExp('\.DS_Store');
+        // let ds_exclude_filter = (path) => {
+        //     return ds_excluder.test(path);
+        // };
+        // this.filters.push(ds_exclude_filter);
     }
 
     walk(job?: any) {

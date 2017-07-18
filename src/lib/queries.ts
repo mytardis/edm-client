@@ -187,9 +187,20 @@ export class EDMQueries {
     : Promise<ApolloQueryResult<any>> {
         const query = gql`
         mutation checkoutFileTransfers($input: CheckoutFileTransfersInput!) {
-          checkoutFileTransfers(input: $input) {
-            fileTransfers
-          }
+            checkoutFileTransfers(input: $input) {
+                fileTransfers {
+                    file {
+                        id
+                        filepath
+                        source {
+                            id
+                            basepath
+                        }
+                    }
+                    id
+                    status
+                }
+            }
         }
         `;
         const mutation = {

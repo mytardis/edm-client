@@ -22,6 +22,11 @@ import * as logger from "./logger";
 import {error} from "util";
 const log = logger.log.child({'tags': ['transfer_queue']});
 
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 /**
  * This task _queue implementation implements parts of a stream.Duplex
  * interface (ITransferQueue) so that it can be used (almost) interchangeably
@@ -108,6 +113,11 @@ export class TransferQueueManager extends events.EventEmitter  {
             this.destination_id, amount || 10);
     }
 
+    private checkoutTransferJobs(amount?: number) {
+        return EDMQueries.checkoutFileTransfers(
+            this.destination_id, amount || 10);
+    }
+
     private initTransferMethod() {
         if (this.method != null) return;
         let method_name = this.destination.host.transferMethod;
@@ -138,6 +148,7 @@ export class TransferQueueManager extends events.EventEmitter  {
     }
 
     queueTask(job: FileTransferJob) {
+        log.debug(job, "queueing job");
         this._tasksOnQueue.push(job.fileTransferId);
         this._queue.push(job);
         return this.isPaused() || this.isFull();
@@ -147,8 +158,10 @@ export class TransferQueueManager extends events.EventEmitter  {
         let reportingCallback = (id, bytes) => {
             if (bytes > -1)
                 this.onTransferComplete(id, bytes).then((backendResponse) => {
-                    let file_transfer_id = backendResponse.data.updateFileTransfer.fileTransfer.id;
-                    let bytes_transferred = backendResponse.data.updateFileTransfer.fileTransfer.bytes_transferred;
+                    let file_transfer_id = backendResponse.data
+                        .updateFileTransfer.fileTransfer.id;
+                    let bytes_transferred = backendResponse.data
+                        .updateFileTransfer.fileTransfer.bytes_transferred;
                     log.debug({event: 'progress', result: backendResponse},
                         `Updated backend with transfer complete status: ${file_transfer_id}`);
                     this.emit('transfer_complete', file_transfer_id, bytes_transferred);
@@ -315,13 +328,12 @@ export class TransferQueueManager extends events.EventEmitter  {
         let q = this._queue;
         let spots = this.getAvailableSpots();
         // step 2: get available spots amount of transfers to start
-        let transfers = this.pullTransferJobs(spots);
+        let transfers = this.checkoutTransferJobs(spots);
         // step 3: queue them
-        transfers.result().then((result) => {
-            let fts = result.data.currentClient.destination.fileTransfers.edges;
-            let source = result.data.currentClient.destination.source;
-            for (let edge of fts) {
-                let ft = edge.node;
+        transfers.then((result) => {
+            let fts = result.data.checkoutFileTransfers.fileTransfers;
+            for (let ft of fts) {
+                // let ft = edge.node;
                 // reformat ft into client ft object
                 let ftJob = new FileTransferJob(
                     ft.id,
